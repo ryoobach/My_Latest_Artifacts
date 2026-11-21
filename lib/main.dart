@@ -883,7 +883,7 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
                           padding: const EdgeInsets.all(24),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
+                            children: [
                               Icon(Icons.inventory_2_outlined, size: 56, color: Color(0xFF9AA4B2)),
                               SizedBox(height: 14),
                               Text('표시할 아티팩트가 없습니다.',
