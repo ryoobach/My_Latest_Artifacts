@@ -90,6 +90,77 @@ String _formattedToday() {
   return '$year-$month-$day';
 }
 
+
+Widget _platformMark(String platform, {double size = 24}) {
+  final Color color;
+  final IconData icon;
+  switch (platform) {
+    case 'GitHub':
+      color = const Color(0xFF24292F);
+      icon = Icons.code;
+      break;
+    case 'GitLab':
+      color = const Color(0xFFFC6D26);
+      icon = Icons.merge_type;
+      break;
+    case 'Bitbucket':
+      color = const Color(0xFF0052CC);
+      icon = Icons.call_split;
+      break;
+    case 'Azure DevOps':
+      color = const Color(0xFF0078D4);
+      icon = Icons.cloud_queue;
+      break;
+    case 'Jenkins':
+      color = const Color(0xFFD33833);
+      icon = Icons.build_circle_outlined;
+      break;
+    case 'SourceForge':
+      color = const Color(0xFFFF6600);
+      icon = Icons.source_outlined;
+      break;
+    case 'Gitea':
+      color = const Color(0xFF609926);
+      icon = Icons.fork_right;
+      break;
+    default:
+      color = const Color(0xFF1685A9);
+      icon = Icons.code;
+  }
+  return Container(
+    width: size + 12,
+    height: size + 12,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Icon(icon, color: color, size: size),
+  );
+}
+
+Widget _loginAppBarTitle(String platform) => Row(
+  children: [
+    Image.asset('my latest artifacts icon.jpg',
+        width: 30, height: 30, fit: BoxFit.contain),
+    const SizedBox(width: 8),
+    const Flexible(
+      child: Text('My Latest Artifacts',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+    ),
+    const SizedBox(width: 14),
+    _platformMark(platform, size: 22),
+    const SizedBox(width: 7),
+    Flexible(
+      child: Text(platform,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+    ),
+  ],
+);
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.platform});
   final String platform;
@@ -177,7 +248,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     if (widget.platform == 'GitHub') return const GithubLoginPage();
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.platform} 로그인')),
+      appBar: AppBar(title: _loginAppBarTitle(widget.platform)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -291,7 +362,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('GitHub 로그인')),
+    appBar: AppBar(title: _loginAppBarTitle('GitHub')),
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
