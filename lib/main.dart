@@ -10,7 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.11';
+const String appVersion = '0.2.12';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
