@@ -47,6 +47,23 @@ jobs:
       - run: flutter create --platforms=android,ios,windows,linux --project-name=my_latest_artifacts .
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
+      - name: Apply custom Windows executable icon
+        shell: pwsh
+        run: |
+          python -m pip install Pillow
+          @'
+          from PIL import Image
+          from pathlib import Path
+          source = Image.open("my latest artifacts icon.jpg").convert("RGB")
+          side = max(source.size)
+          canvas = Image.new("RGB", (side, side), (255, 255, 255))
+          canvas.paste(source, ((side - source.width) // 2, (side - source.height) // 2))
+          target = Path("windows/runner/resources/app_icon.ico")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          canvas.save(target, format="ICO", sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])
+          if not target.exists() or target.stat().st_size == 0:
+              raise SystemExit("Windows ICO generation failed")
+          '@ | python -
       - run: flutter build windows --release
       - shell: pwsh
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windows_x64.zip
@@ -105,8 +122,8 @@ jobs:
           cp release-files/linux-x64/My_Latest_Artifacts_Linux_x64.tar.gz package/
           cp release-files/ios-simulator-app/My_Latest_Artifacts_iOS_Simulator.zip package/
           cd package
-          zip -r ../My_Latest_Artifacts_v0.1.0.zip .
+          zip -r ../My_Latest_Artifacts_v0.2.0.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: My_Latest_Artifacts_v0.1.0
-          path: My_Latest_Artifacts_v0.1.0.zip
+          name: My_Latest_Artifacts_v0.2.0
+          path: My_Latest_Artifacts_v0.2.0.zip
