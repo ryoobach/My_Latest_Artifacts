@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const String appVersion = '0.2.3';
+const String appVersion = '0.2.4';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +71,299 @@ class MyLatestArtifactsApp extends StatelessWidget {
           centerTitle: false,
         ),
       ),
-      home: const ArtifactHomePage(),
+      home: const LoginPage(),
+    );
+  }
+}
+
+
+String _formattedToday() {
+  final now = DateTime.now();
+  final year = now.year.toString().padLeft(4, '0');
+  final month = now.month.toString().padLeft(2, '0');
+  final day = now.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
+}
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final _idController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _idController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _showNotice(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _login() {
+    if (_idController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      _showNotice('아이디와 비밀번호를 입력해 주세요.');
+      return;
+    }
+    DiagnosticLog.write('login_attempt', 'Password login attempted; credentials excluded');
+    _showNotice('계정 인증 서버가 아직 연결되지 않았습니다. 인증 연동 후 사용할 수 있습니다.');
+  }
+
+  void _socialLogin(String provider) {
+    DiagnosticLog.write('social_login_tapped', '$provider OAuth is not configured');
+    _showNotice('$provider 간편 로그인은 서비스 인증 설정 후 사용할 수 있습니다.');
+  }
+
+  Widget _socialButton({
+    required String name,
+    required Color background,
+    required Color foreground,
+    required Widget mark,
+  }) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _socialLogin(name),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                ),
+                child: DefaultTextStyle(
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  child: mark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(name, style: const TextStyle(fontSize: 11)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(18),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Card(
+                elevation: 1,
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 28,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'my latest artifacts icon.jpg',
+                        width: 68,
+                        height: 68,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'My Latest Artifacts',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        '로그인',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: TextField(
+                              controller: _idController,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                hintText: '아이디',
+                                prefixIcon: Icon(Icons.person_outline, size: 19),
+                                prefixIconConstraints:
+                                    BoxConstraints(minWidth: 30),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 15,
+                                ),
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 5,
+                            child: TextField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              onSubmitted: (_) => _login(),
+                              decoration: InputDecoration(
+                                hintText: '비밀번호',
+                                prefixIcon:
+                                    const Icon(Icons.lock_outline, size: 19),
+                                prefixIconConstraints:
+                                    const BoxConstraints(minWidth: 30),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 15,
+                                ),
+                                border: const OutlineInputBorder(),
+                                suffixIcon: IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 30,
+                                    minHeight: 36,
+                                  ),
+                                  onPressed: () => setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  }),
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            height: 50,
+                            child: FilledButton(
+                              onPressed: _login,
+                              style: FilledButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              child: const Text(
+                                '로그인',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 26),
+                      Row(
+                        children: [
+                          const Expanded(child: Divider()),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              '간편 로그인',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _socialButton(
+                            name: 'Google',
+                            background: Colors.white,
+                            foreground: const Color(0xFF4285F4),
+                            mark: const Text('G'),
+                          ),
+                          _socialButton(
+                            name: 'Facebook',
+                            background: const Color(0xFF1877F2),
+                            foreground: Colors.white,
+                            mark: const Text('f'),
+                          ),
+                          _socialButton(
+                            name: '카카오톡',
+                            background: const Color(0xFFFEE500),
+                            foreground: const Color(0xFF191919),
+                            mark: const Icon(
+                              Icons.chat_bubble,
+                              size: 25,
+                              color: Color(0xFF191919),
+                            ),
+                          ),
+                          _socialButton(
+                            name: '네이버',
+                            background: const Color(0xFF03C75A),
+                            foreground: Colors.white,
+                            mark: const Text('N'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        '계정 로그인과 간편 로그인은 인증 서버 및 서비스별 설정이 완료된 후 활성화됩니다.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.black45,
+                          fontSize: 11,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -156,7 +448,14 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            Center(
+              child: Text(
+                _formattedToday(),
+                style: const TextStyle(color: Colors.black54, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Image.asset('js_logo.png',
