@@ -1024,7 +1024,7 @@ class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
                     SizedBox(height: 14),
                     Text('표시할 아티팩트가 없습니다', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                     SizedBox(height: 8),
-                    Text('사이트 인증과 아티팩트 API 연결이 완료되면\n이곳에 실제 아티팩트가 체크박스로 표시됩니다.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, height: 1.5)),
+                    Text('GitHub Actions 아티팩트가 없거나\n저장소의 Actions 읽기 권한이 없을 수 있습니다.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, height: 1.5)),
                   ],
                 ),
               ),
@@ -1107,7 +1107,7 @@ class _PlatformSelectionDialogState extends State<PlatformSelectionDialog> {
           )),
           const SizedBox(height: 4),
           const Text(
-            '선택한 사이트는 다음 실행 때도 유지됩니다. 계정 인증 및 실제 아티팩트 자동 조회는 후속 연결이 필요합니다.',
+            '선택한 사이트는 다음 실행 때도 유지됩니다. 실제 연동은 GitHub부터 순서대로 지원합니다.',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
         ],
