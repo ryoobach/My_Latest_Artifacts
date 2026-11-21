@@ -716,6 +716,63 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
     if (mounted) setState(() {});
   }
 
+  Future<List<ArtifactItem>> _loadSelectedArtifacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (await GithubAuthService.isSignedIn) {
+      try {
+        final fresh = await GithubAuthService.fetchArtifacts();
+        await prefs.setString('github_artifacts_cache', jsonEncode(fresh.map((a) => a.toJson()).toList()));
+      } catch (error, stack) {
+        await DiagnosticLog.write('github_auto_refresh_failed', error.toString(), stack.toString());
+      }
+    }
+    final raw = prefs.getString('github_artifacts_cache');
+    final selected = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
+    if (raw == null || selected.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    final all = decoded.map((e) => GithubArtifact.fromJson(e as Map<String, dynamic>))
+        .where((a) => selected.contains(a.id)).toList();
+    final latestByProject = <String, GithubArtifact>{};
+    for (final artifact in all) {
+      final old = latestByProject[artifact.repository];
+      if (old == null || artifact.createdAt.isAfter(old.createdAt)) {
+        latestByProject[artifact.repository] = artifact;
+      }
+    }
+    return latestByProject.values.map((a) => ArtifactItem(
+      id: a.id, title: a.name, platform: 'GitHub', project: a.repository,
+      description: a.description, createdAt: a.createdAt,
+    )).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  Future<void> _downloadArtifact(ArtifactItem item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('아티팩트 다운로드'),
+        content: Text('${item.title}\n${item.project}\n\n다운로드하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('OK')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final artifact = GithubArtifact(
+        id: item.id, name: item.title, repository: item.project,
+        createdAt: item.createdAt, description: item.description,
+      );
+      final file = await GithubAuthService.download(artifact);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('다운로드 완료: ${file.path}'), duration: const Duration(seconds: 6)),
+      );
+    } catch (error, stack) {
+      await DiagnosticLog.write('artifact_download_failed', error.toString(), stack.toString());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('다운로드 실패: $error')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -747,8 +804,41 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
       )),
       const SizedBox(height: 8),
       const Text(
-        '플랫폼을 누르면 인증 정보를 입력하거나 변경할 수 있습니다. 실제 계정 인증과 아티팩트 자동 조회는 각 사이트 API 연결 단계에서 활성화됩니다.',
+        '플랫폼을 선택해 공식 계정을 연결하고 실제 아티팩트를 선택하세요.',
         style: TextStyle(fontSize: 12, color: Colors.black54),
+      ),
+      const SizedBox(height: 14),
+      FutureBuilder<List<ArtifactItem>>(
+        future: _loadSelectedArtifacts(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
+          }
+          final items = snapshot.data ?? const <ArtifactItem>[];
+          if (items.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('선택한 아티팩트가 여기에 표시됩니다.', style: TextStyle(color: Colors.black54)),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('선택된 최신 아티팩트', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              ...items.map((item) => Card(
+                elevation: 0,
+                color: Colors.white,
+                child: ListTile(
+                  title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text('${item.project} · ${item.createdAt.toLocal()}'),
+                  trailing: const Icon(Icons.download_outlined),
+                  onTap: () => _downloadArtifact(item),
+                ),
+              )),
+            ],
+          );
+        },
       ),
     ],
   );
