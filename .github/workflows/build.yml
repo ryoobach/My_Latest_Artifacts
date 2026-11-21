@@ -19,7 +19,19 @@ jobs:
       - run: flutter create --platforms=android,ios,windows,linux --project-name=my_latest_artifacts .
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
-      - run: flutter build apk --release
+      - name: Build Android APK with retry for transient repository throttling
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if flutter build apk --release; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Build failed; retrying after backoff (attempt $attempt of 3)."
+              sleep $((attempt * 30))
+            fi
+          done
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
@@ -71,12 +83,13 @@ jobs:
       - run: flutter create --platforms=android,ios,windows,linux --project-name=my_latest_artifacts .
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
-      - run: flutter build ios --release --no-codesign
-      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app My_Latest_Artifacts_iOS_unsigned_app.zip
+      # Simulator build does not require an Apple Development Team or provisioning profile.
+      - run: flutter build ios --simulator --release
+      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOS_Simulator.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-unsigned-app
-          path: My_Latest_Artifacts_iOS_unsigned_app.zip
+          name: ios-simulator-app
+          path: My_Latest_Artifacts_iOS_Simulator.zip
 
   package:
     needs: [android, windows, linux, ios]
@@ -90,7 +103,7 @@ jobs:
           cp release-files/android-apk/app-release.apk package/My_Latest_Artifacts_Android.apk
           cp release-files/windows-x64/My_Latest_Artifacts_Windows_x64.zip package/
           cp release-files/linux-x64/My_Latest_Artifacts_Linux_x64.tar.gz package/
-          cp release-files/ios-unsigned-app/My_Latest_Artifacts_iOS_unsigned_app.zip package/
+          cp release-files/ios-simulator-app/My_Latest_Artifacts_iOS_Simulator.zip package/
           cd package
           zip -r ../My_Latest_Artifacts_v0.1.0.zip .
       - uses: actions/upload-artifact@v4
