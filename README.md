@@ -2,19 +2,32 @@
 
 Cross-platform dashboard for viewing the newest build artifact from each project.
 
-## Build 0.2.2
+## Build 0.2.3
 
-- Retains the platform-selection UI and saved settings from v0.2.1.
-- Updates platform package names to the agreed format: `My_Latest_Artifacts_Androidv0.2.2.apk`, `My_Latest_Artifacts_Windowsv0.2.2.zip`, `My_Latest_Artifacts_Linuxv0.2.2.tar.gz`, and `My_Latest_Artifacts_iOSv0.2.2.zip`.
-- Provides a combined archive named `My_Latest_Artifacts_v0.2.2.zip`.
+- Updates the About dialog to show the original app icon, app name, and version on the first row.
+- Shows the existing user/collaborator artwork `js_logo.png` beside `Ryoo jaesang & 최피디` on the second row. No additional "공동제작" caption is displayed.
+- Uses the exact agreed filenames for GitHub Actions artifacts and GitHub Release assets:
+  - `My_Latest_Artifacts_Androidv0.2.3.apk`
+  - `My_Latest_Artifacts_Windowsv0.2.3.zip`
+  - `My_Latest_Artifacts_Linuxv0.2.3.tar.gz`
+  - `My_Latest_Artifacts_iOSv0.2.3.zip`
+  - Combined: `My_Latest_Artifacts_v0.2.3.zip`
+- Publishes the five files as direct GitHub Release assets, avoiding an extra Actions-artifact ZIP wrapper for end-user downloads.
+- The combined ZIP contains the four platform files directly at its root.
+
+## Authentication roadmap
+
+- The app's optional sign-in providers are planned in this order: Google first, followed by Naver, Kakao, and Facebook.
+- Real sign-in requires OAuth application registration, client identifiers/secrets, redirect URI configuration, and platform-specific callback setup. No nonfunctional sign-in buttons are presented as working authentication in this build.
+- Connecting GitHub, GitLab, Bitbucket, Azure DevOps, and Jenkins still requires each provider's own authorization and API integration. App sign-in does not grant access to those development-platform accounts.
 
 ## Important implementation status
 
-This build is an intermediate UI and settings build. The selected platform list is saved, but provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. These require separate provider API and authentication implementations. Do not treat the platform selection screen as proof that artifact retrieval is already working.
+This remains an intermediate UI and settings build. The selected development-platform list is saved, and platform credential values are stored securely on the device, but provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. Do not treat the platform selection screen as proof that artifact retrieval is already working.
 
 ## Build outputs
 
-GitHub Actions prepares platform-specific packages and collects them in `My_Latest_Artifacts_v0.2.2.zip`.
+GitHub Releases provide direct downloads for each platform and the combined ZIP.
 
 - Android: release APK.
 - Windows x64: ZIP containing the executable and required Flutter runtime files.
