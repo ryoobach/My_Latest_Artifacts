@@ -64,21 +64,21 @@ class GithubAuthService {
   static Future<Map<String,dynamic>> _get(Uri uri) async {
     final c=HttpClient();
     try{
-      final r=await c.getUrl(uri);r.headers.set(HttpHeaders.authorizationHeader,'Bearer \${await _token()}');r.headers.set(HttpHeaders.acceptHeader,'application/vnd.github+json');r.headers.set('X-GitHub-Api-Version','2022-11-28');r.headers.set(HttpHeaders.userAgentHeader,'My-Latest-Artifacts');
+      final r=await c.getUrl(uri);r.headers.set(HttpHeaders.authorizationHeader,'Bearer ${await _token()}');r.headers.set(HttpHeaders.acceptHeader,'application/vnd.github+json');r.headers.set('X-GitHub-Api-Version','2022-11-28');r.headers.set(HttpHeaders.userAgentHeader,'My-Latest-Artifacts');
       final res=await r.close();final body=await utf8.decodeStream(res);
-      if(res.statusCode<200||res.statusCode>=300){var msg='요청을 처리하지 못했습니다.';try{msg=(jsonDecode(body) as Map<String,dynamic>)['message'] as String???msg;}catch(_){}throw HttpException('GitHub API 오류 (\${res.statusCode}): $msg');}
+      if(res.statusCode<200||res.statusCode>=300){var msg='요청을 처리하지 못했습니다.';try{msg=(jsonDecode(body) as Map<String,dynamic>)['message'] as String? ?? msg;}catch(_){}throw HttpException('GitHub API 오류 (${res.statusCode}): $msg');}
       return jsonDecode(body) as Map<String,dynamic>;
     }finally{c.close(force:true);}
   }
   static Future<List<GithubArtifact>> fetchArtifacts() async {
     await _get(Uri.https('api.github.com','/user'));final repos=<Map<String,dynamic>>[];
-    for(var page=1;page<=20;page++){final j=await _get(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));final rows=j['items'] as List<dynamic>???[];repos.addAll(rows.cast<Map<String,dynamic>>());if(rows.length<100)break;}
+    for(var page=1;page<=20;page++){final j=await _get(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));final rows=j['items'] as List<dynamic>? ?? [];repos.addAll(rows.cast<Map<String,dynamic>>());if(rows.length<100)break;}
     final out=<GithubArtifact>[];
     for(final repo in repos){
-      final owner=repo['owner']?['login'] as String???'';final name=repo['name'] as String???'';final full=repo['full_name'] as String???'';if(owner.isEmpty||name.isEmpty||full.isEmpty)continue;
+      final owner=repo['owner']?['login'] as String? ?? '';final name=repo['name'] as String? ?? '';final full=repo['full_name'] as String? ?? '';if(owner.isEmpty||name.isEmpty||full.isEmpty)continue;
       for(var page=1;page<=20;page++){
-        final j=await _get(Uri.https('api.github.com','/repos/$owner/$name/actions/artifacts',{'per_page':'100','page':'$page'}));final rows=j['artifacts'] as List<dynamic>???[];
-        for(final raw in rows){final a=raw as Map<String,dynamic>;if(a['expired']==true)continue;final date=DateTime.tryParse(a['created_at'] as String? ?? '');if(date==null)continue;out.add(GithubArtifact(id:'$full:\${a['id']}',name:a['name'] as String? ?? 'Artifact',repository:full,createdAt:date,description:'GitHub Actions 아티팩트'));}
+        final j=await _get(Uri.https('api.github.com','/repos/$owner/$name/actions/artifacts',{'per_page':'100','page':'$page'}));final rows=j['artifacts'] as List<dynamic>? ?? [];
+        for(final raw in rows){final a=raw as Map<String,dynamic>;if(a['expired']==true)continue;final date=DateTime.tryParse(a['created_at'] as String? ?? '');if(date==null)continue;out.add(GithubArtifact(id:'$full:${a['id']}',name:a['name'] as String? ?? 'Artifact',repository:full,createdAt:date,description:'GitHub Actions 아티팩트'));}
         if(rows.length<100)break;
       }
     }
@@ -88,18 +88,18 @@ class GithubAuthService {
     final parts=artifact.id.split(':');final repo=parts.first.split('/');if(parts.length!=2||repo.length!=2)throw Exception('아티팩트 정보가 올바르지 않습니다.');
     final c=HttpClient();
     try{
-      final req=await c.getUrl(Uri.https('api.github.com','/repos/\${repo[0]}/\${repo[1]}/actions/artifacts/\${parts[1]}/zip'));
-      req.headers.set(HttpHeaders.authorizationHeader,'Bearer \${await _token()}');req.headers.set(HttpHeaders.acceptHeader,'application/vnd.github+json');req.headers.set('X-GitHub-Api-Version','2022-11-28');req.headers.set(HttpHeaders.userAgentHeader,'My-Latest-Artifacts');
-      final res=await req.close();if(res.statusCode<200||res.statusCode>=300)throw HttpException('다운로드 오류 (\${res.statusCode})');
-      final bytes=await res.fold<List<int>>(<int>[],(all,chunk)=>all..addAll(chunk));final dir=await getApplicationDocumentsDirectory();final safe=artifact.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'),'_');final file=File('\${dir.path}/$safe-\${parts[1]}.zip');await file.writeAsBytes(bytes,flush:true);return file;
+      final req=await c.getUrl(Uri.https('api.github.com','/repos/${repo[0]}/${repo[1]}/actions/artifacts/${parts[1]}/zip'));
+      req.headers.set(HttpHeaders.authorizationHeader,'Bearer ${await _token()}');req.headers.set(HttpHeaders.acceptHeader,'application/vnd.github+json');req.headers.set('X-GitHub-Api-Version','2022-11-28');req.headers.set(HttpHeaders.userAgentHeader,'My-Latest-Artifacts');
+      final res=await req.close();if(res.statusCode<200||res.statusCode>=300)throw HttpException('다운로드 오류 (${res.statusCode})');
+      final bytes=await res.fold<List<int>>(<int>[],(all,chunk)=>all..addAll(chunk));final dir=await getApplicationDocumentsDirectory();final safe=artifact.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'),'_');final file=File('${dir.path}/$safe-${parts[1]}.zip');await file.writeAsBytes(bytes,flush:true);return file;
     }finally{c.close(force:true);}
   }
   static Future<Map<String,dynamic>> _post(Uri uri,Map<String,String> fields,{bool allowError=false}) async {
     final c=HttpClient();
     try{
       final req=await c.postUrl(uri);req.headers.contentType=ContentType('application','x-www-form-urlencoded',charset:'utf-8');req.headers.set(HttpHeaders.acceptHeader,'application/json');
-      req.write(fields.entries.map((e)=>'\${Uri.encodeQueryComponent(e.key)}=\${Uri.encodeQueryComponent(e.value)}').join('&'));
-      final res=await req.close();final body=await utf8.decodeStream(res);if(res.statusCode<200||res.statusCode>=300)throw HttpException('GitHub 인증 오류 (\${res.statusCode})');
+      req.write(fields.entries.map((e)=>'${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}').join('&'));
+      final res=await req.close();final body=await utf8.decodeStream(res);if(res.statusCode<200||res.statusCode>=300)throw HttpException('GitHub 인증 오류 (${res.statusCode})');
       final j=jsonDecode(body) as Map<String,dynamic>;if(!allowError&&j['error']!=null)throw Exception(j['error_description']??j['error']);return j;
     }finally{c.close(force:true);}
   }
