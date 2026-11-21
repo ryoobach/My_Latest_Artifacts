@@ -9,7 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.8';
+const String appVersion = '0.2.9';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,6 +89,77 @@ String _formattedToday() {
   final day = now.day.toString().padLeft(2, '0');
   return '$year-$month-$day';
 }
+
+
+Widget _platformMark(String platform, {double size = 24}) {
+  final Color color;
+  final IconData icon;
+  switch (platform) {
+    case 'GitHub':
+      color = const Color(0xFF24292F);
+      icon = Icons.code;
+      break;
+    case 'GitLab':
+      color = const Color(0xFFFC6D26);
+      icon = Icons.merge_type;
+      break;
+    case 'Bitbucket':
+      color = const Color(0xFF0052CC);
+      icon = Icons.call_split;
+      break;
+    case 'Azure DevOps':
+      color = const Color(0xFF0078D4);
+      icon = Icons.cloud_queue;
+      break;
+    case 'Jenkins':
+      color = const Color(0xFFD33833);
+      icon = Icons.build_circle_outlined;
+      break;
+    case 'SourceForge':
+      color = const Color(0xFFFF6600);
+      icon = Icons.source_outlined;
+      break;
+    case 'Gitea':
+      color = const Color(0xFF609926);
+      icon = Icons.fork_right;
+      break;
+    default:
+      color = const Color(0xFF1685A9);
+      icon = Icons.code;
+  }
+  return Container(
+    width: size + 12,
+    height: size + 12,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Icon(icon, color: color, size: size),
+  );
+}
+
+Widget _loginAppBarTitle(String platform) => Row(
+  children: [
+    Image.asset('my latest artifacts icon.jpg',
+        width: 30, height: 30, fit: BoxFit.contain),
+    const SizedBox(width: 8),
+    const Flexible(
+      child: Text('My Latest Artifacts',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+    ),
+    const SizedBox(width: 14),
+    _platformMark(platform, size: 22),
+    const SizedBox(width: 7),
+    Flexible(
+      child: Text(platform,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+    ),
+  ],
+);
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.platform});
@@ -177,194 +248,35 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     if (widget.platform == 'GitHub') return const GithubLoginPage();
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(18),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 680),
-              child: Card(
-                elevation: 1,
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 28,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        'my latest artifacts icon.jpg',
-                        width: 68,
-                        height: 68,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'My Latest Artifacts',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${widget.platform} 로그인',
-                        style: const TextStyle(
-                          color: Colors.black54,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: TextField(
-                              controller: _idController,
-                              textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                hintText: '아이디',
-                                prefixIcon: Icon(Icons.person_outline, size: 19),
-                                prefixIconConstraints:
-                                    BoxConstraints(minWidth: 30),
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 15,
-                                ),
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 5,
-                            child: TextField(
-                              controller: _passwordController,
-                              obscureText: _obscurePassword,
-                              onSubmitted: (_) => _login(),
-                              decoration: InputDecoration(
-                                hintText: '비밀번호',
-                                prefixIcon:
-                                    const Icon(Icons.lock_outline, size: 19),
-                                prefixIconConstraints:
-                                    const BoxConstraints(minWidth: 30),
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 15,
-                                ),
-                                border: const OutlineInputBorder(),
-                                suffixIcon: IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                    minWidth: 30,
-                                    minHeight: 36,
-                                  ),
-                                  onPressed: () => setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  }),
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_outlined
-                                        : Icons.visibility_off_outlined,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            height: 50,
-                            child: FilledButton(
-                              onPressed: _login,
-                              style: FilledButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 10),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(9),
-                                ),
-                              ),
-                              child: const Text(
-                                '로그인',
-                                style: TextStyle(fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 26),
-                      Row(
-                        children: [
-                          const Expanded(child: Divider()),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              '간편 로그인',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          const Expanded(child: Divider()),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _socialButton(
-                            name: 'Google',
-                            background: Colors.white,
-                            foreground: const Color(0xFF4285F4),
-                            mark: const Text('G'),
-                          ),
-                          _socialButton(
-                            name: 'Facebook',
-                            background: const Color(0xFF1877F2),
-                            foreground: Colors.white,
-                            mark: const Text('f'),
-                          ),
-                          _socialButton(
-                            name: '카카오톡',
-                            background: const Color(0xFFFEE500),
-                            foreground: const Color(0xFF191919),
-                            mark: const Icon(
-                              Icons.chat_bubble,
-                              size: 25,
-                              color: Color(0xFF191919),
-                            ),
-                          ),
-                          _socialButton(
-                            name: '네이버',
-                            background: const Color(0xFF03C75A),
-                            foreground: Colors.white,
-                            mark: const Text('N'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        '계정 로그인과 간편 로그인은 인증 서버 및 서비스별 설정이 완료된 후 활성화됩니다.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.black45,
-                          fontSize: 11,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
+      appBar: AppBar(title: _loginAppBarTitle(widget.platform)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Card(
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_sync_outlined, size: 52),
+                    const SizedBox(height: 16),
+                    Text('${widget.platform} 공식 계정 연결',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '이 플랫폼의 공식 인증 및 아티팩트 API 연동은 아직 구현 중입니다. 비밀번호나 토큰을 이 화면에 입력하지 마세요.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.black54, height: 1.5),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('닫기'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -372,6 +284,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+
   }
 }
 
@@ -415,6 +328,10 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
       final artifacts = await GithubAuthService.fetchArtifacts();
       final prefs = await SharedPreferences.getInstance();
       final oldIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
+      final oldProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
+      final selectedProjects = oldProjects.isNotEmpty
+          ? oldProjects
+          : artifacts.where((a) => oldIds.contains(a.id)).map((a) => a.repository).toSet();
       final items = artifacts.map((a) => ArtifactItem(
         id: a.id, title: a.name, platform: 'GitHub', project: a.repository,
         description: a.description, createdAt: a.createdAt,
@@ -422,11 +339,14 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
       if (!mounted) return;
       final selected = await Navigator.of(context).push<Set<String>>(
         MaterialPageRoute(builder: (_) => ArtifactSelectionPage(
-          platform: 'GitHub', artifacts: items, initiallySelectedIds: oldIds,
+          platform: 'GitHub', artifacts: items, initiallySelectedIds: selectedProjects,
         )),
       );
       if (selected == null) return;
-      await prefs.setStringList('github_selected_artifact_ids', selected.toList());
+      await prefs.setStringList('github_selected_projects', selected.toList());
+      await prefs.setStringList('github_selected_artifact_ids', artifacts
+          .where((a) => selected.contains(a.repository))
+          .map((a) => a.id).toList());
       await prefs.setString('github_artifacts_cache',
         jsonEncode(artifacts.map((a) => a.toJson()).toList()));
       await DiagnosticLog.write('github_artifacts_selected', 'count=${selected.length}');
@@ -442,7 +362,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('GitHub 연결')),
+    appBar: AppBar(title: _loginAppBarTitle('GitHub')),
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -455,7 +375,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.account_tree_outlined, size: 54),
                 const SizedBox(height: 14),
-                const Text('GitHub 계정 연결', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+                const Text('GitHub 로그인', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 const Text('비밀번호를 앱에 입력하지 않습니다. GitHub 공식 인증 페이지에서 승인해 주세요.', textAlign: TextAlign.center),
                 const SizedBox(height: 18),
@@ -521,6 +441,12 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
     final removed = selectedPlatforms.difference(result);
     for (final platform in removed) {
       await PlatformCredentials.delete(platform);
+      if (platform == 'GitHub') {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('github_selected_artifact_ids');
+        await prefs.remove('github_selected_projects');
+        await prefs.remove('github_artifacts_cache');
+      }
     }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('selected_platforms', supportedPlatforms
@@ -628,7 +554,7 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('프로젝트별 최신 아티팩트',
+                  Text('프로젝트별 최신 성공 아티팩트',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
@@ -659,10 +585,10 @@ class _EmptyState extends StatelessWidget {
       children: [
         Icon(Icons.inventory_2_outlined, size: 58, color: Color(0xFF9AA4B2)),
         SizedBox(height: 14),
-        Text('등록된 프로젝트가 없습니다',
+        Text('선택한 프로젝트가 없습니다.',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         SizedBox(height: 7),
-        Text('프로젝트를 추가하면 최신 아티팩트를\n이 화면에서 확인할 수 있습니다.',
+        Text('＋ 새 프로젝트를 눌러 개발 플랫폼을 추가하세요.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, height: 1.5)),
       ],
@@ -712,11 +638,9 @@ class _SelectedPlatformsState extends StatefulWidget {
 }
 
 class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
-  void _openCredentials(String platform) async {
+  Future<void> _openPlatform(String platform) async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => LoginPage(platform: platform),
-      ),
+      MaterialPageRoute<void>(builder: (_) => LoginPage(platform: platform)),
     );
     if (mounted) setState(() {});
   }
@@ -726,19 +650,24 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
     if (await GithubAuthService.isSignedIn) {
       try {
         final fresh = await GithubAuthService.fetchArtifacts();
-        await prefs.setString('github_artifacts_cache', jsonEncode(fresh.map((a) => a.toJson()).toList()));
+        await prefs.setString('github_artifacts_cache',
+            jsonEncode(fresh.map((a) => a.toJson()).toList()));
       } catch (error, stack) {
         await DiagnosticLog.write('github_auto_refresh_failed', error.toString(), stack.toString());
       }
     }
     final raw = prefs.getString('github_artifacts_cache');
-    final selected = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
-    if (raw == null || selected.isEmpty) return [];
+    final selectedProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
+    final selectedIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
+    if (raw == null) return [];
     final decoded = jsonDecode(raw) as List<dynamic>;
-    final all = decoded.map((e) => GithubArtifact.fromJson(e as Map<String, dynamic>))
-        .where((a) => selected.contains(a.id)).toList();
+    final all = decoded.map((e) => GithubArtifact.fromJson(e as Map<String, dynamic>)).toList();
+    final projects = selectedProjects.isNotEmpty
+        ? selectedProjects
+        : all.where((a) => selectedIds.contains(a.id)).map((a) => a.repository).toSet();
+    if (projects.isEmpty) return [];
     final latestByProject = <String, GithubArtifact>{};
-    for (final artifact in all) {
+    for (final artifact in all.where((a) => projects.contains(a.repository))) {
       final old = latestByProject[artifact.repository];
       if (old == null || artifact.createdAt.isAfter(old.createdAt)) {
         latestByProject[artifact.repository] = artifact;
@@ -755,10 +684,10 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('아티팩트 다운로드'),
-        content: Text('${item.title}\n${item.project}\n\n다운로드하시겠습니까?'),
+        content: Text('${item.title}\\n${item.project}\\n\\n다운로드하시겠습니까?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('OK')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('확인')),
         ],
       ),
     );
@@ -774,79 +703,89 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
       );
     } catch (error, stack) {
       await DiagnosticLog.write('artifact_download_failed', error.toString(), stack.toString());
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('다운로드 실패: $error')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('다운로드 실패: $error')),
+      );
     }
   }
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text('선택된 개발 플랫폼',
-          style: TextStyle(fontWeight: FontWeight.w700)),
-      const SizedBox(height: 8),
-      ...widget.platforms.map((platform) => FutureBuilder<bool>(
-        future: PlatformCredentials.hasCredentials(platform),
-        builder: (context, snapshot) {
-          final saved = snapshot.data == true;
-          return Card(
-            elevation: 0,
-            color: Colors.white,
-            child: ListTile(
-              leading: const Icon(Icons.cloud_outlined),
-              title: Text(platform),
-              subtitle: Text(saved
-                  ? '인증 정보가 안전하게 저장되어 있습니다.'
-                  : '로그인 정보 입력이 필요합니다.'),
-              trailing: Icon(
-                saved ? Icons.verified_user_outlined : Icons.login,
-                color: saved ? Colors.green : Colors.black54,
-              ),
-              onTap: () => _openCredentials(platform),
-            ),
-          );
-        },
-      )),
-      const SizedBox(height: 8),
-      const Text(
-        '플랫폼을 선택해 공식 계정을 연결하고 실제 아티팩트를 선택하세요.',
-        style: TextStyle(fontSize: 12, color: Colors.black54),
-      ),
-      const SizedBox(height: 14),
-      FutureBuilder<List<ArtifactItem>>(
-        future: _loadSelectedArtifacts(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
-          }
-          final items = snapshot.data ?? const <ArtifactItem>[];
-          if (items.isEmpty) {
-            return const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('선택한 아티팩트가 여기에 표시됩니다.', style: TextStyle(color: Colors.black54)),
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('선택된 최신 아티팩트', style: TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              ...items.map((item) => Card(
-                elevation: 0,
-                color: Colors.white,
-                child: ListTile(
-                  title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${item.project} · ${item.createdAt.toLocal()}'),
-                  trailing: const Icon(Icons.download_outlined),
-                  onTap: () => _downloadArtifact(item),
+  Widget build(BuildContext context) => SingleChildScrollView(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: widget.platforms.map((platform) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FutureBuilder<bool>(
+                  future: PlatformCredentials.hasCredentials(platform),
+                  builder: (context, snapshot) {
+                    final connected = snapshot.data == true;
+                    return OutlinedButton.icon(
+                      onPressed: () => _openPlatform(platform),
+                      icon: Icon(
+                        connected ? Icons.verified_user_outlined : Icons.login,
+                        size: 18,
+                      ),
+                      label: Text(platform),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: connected ? const Color(0xFFEAF4EE) : Colors.white,
+                        foregroundColor: const Color(0xFF263445),
+                        side: BorderSide(color: connected ? const Color(0xFF8BC5A0) : const Color(0xFFD7DDE5)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                    );
+                  },
                 ),
-              )),
-            ],
-          );
-        },
-      ),
-    ],
-  ));
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 18),
+        FutureBuilder<List<ArtifactItem>>(
+          future: _loadSelectedArtifacts(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final items = snapshot.data ?? const <ArtifactItem>[];
+            if (items.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('선택한 프로젝트가 없습니다.',
+                    style: TextStyle(color: Colors.black54)),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('프로젝트별 최신 성공 아티팩트',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                ...items.map((item) => Card(
+                  elevation: 0,
+                  color: Colors.white,
+                  child: ListTile(
+                    title: Text(item.title,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text('${item.project} · ${item.createdAt.toLocal()}'),
+                    trailing: const Icon(Icons.download_outlined),
+                    onTap: () => _downloadArtifact(item),
+                  ),
+                )),
+              ],
+            );
+          },
+        ),
+      ],
+    ),
+  );
 }
 
 class PlatformCredentialDialog extends StatefulWidget {
@@ -1006,7 +945,7 @@ class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
               if (selectedIds.length == artifacts.length) {
                 selectedIds.clear();
               } else {
-                selectedIds..clear()..addAll(artifacts.map((item) => item.id));
+                selectedIds..clear()..addAll(artifacts.map((item) => item.project));
               }
             }),
             child: Text(selectedIds.length == artifacts.length ? '전체 해제' : '전체 선택'),
@@ -1039,9 +978,9 @@ class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
                   elevation: 0,
                   color: Colors.white,
                   child: CheckboxListTile(
-                    value: selectedIds.contains(item.id),
+                    value: selectedIds.contains(item.project),
                     onChanged: (checked) => setState(() {
-                      if (checked == true) { selectedIds.add(item.id); } else { selectedIds.remove(item.id); }
+                      if (checked == true) { selectedIds.add(item.project); } else { selectedIds.remove(item.project); }
                     }),
                     controlAffinity: ListTileControlAffinity.leading,
                     title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
