@@ -127,8 +127,8 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
     DiagnosticLog.write('project_added', '${result.provider}: ${result.url}');
   }
 
-  Future<void> _showAbout() async {
-    await showAboutDialog(
+  void _showAbout() {
+    showAboutDialog(
       context: context,
       applicationName: 'My Latest Artifacts',
       applicationVersion: '0.1.0',
@@ -240,8 +240,7 @@ class _EmptyState extends StatelessWidget {
         const Text('등록된 프로젝트가 없습니다',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         const SizedBox(height: 7),
-        const Text('프로젝트를 추가하면 최신 아티팩트를
-이 화면에서 확인할 수 있습니다.',
+        const Text('프로젝트를 추가하면 최신 아티팩트를\n이 화면에서 확인할 수 있습니다.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, height: 1.5)),
         const SizedBox(height: 18),
