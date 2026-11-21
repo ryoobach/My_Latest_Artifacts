@@ -415,34 +415,39 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
       await DiagnosticLog.write('github_artifact_fetch_started', 'Fetching repositories and successful artifacts');
       final repositories = await GithubAuthService.fetchRepositories();
       await DiagnosticLog.write('github_repositories_fetch_completed', 'count=${repositories.length}');
-      final artifacts = await GithubAuthService.fetchArtifacts(repositories: repositories);
-      await DiagnosticLog.write('github_artifact_fetch_completed', 'count=${artifacts.length}');
       final prefs = await SharedPreferences.getInstance();
       final oldIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
       final oldProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
       final selectedProjects = oldProjects.isNotEmpty
           ? oldProjects
-          : artifacts.where((a) => oldIds.contains(a.id)).map((a) => a.repository).toSet();
-      final items = artifacts.map((a) => ArtifactItem(
-        id: a.id, title: a.name, platform: 'GitHub', project: a.repository,
-        description: a.description, createdAt: a.createdAt,
-      )).toList();
+          : <String>{};
       if (!mounted) return;
       final selected = await Navigator.of(context).push<Set<String>>(
         MaterialPageRoute(builder: (_) => ArtifactSelectionPage(
-          platform: 'GitHub', artifacts: items, projects: repositories,
+          platform: 'GitHub', artifacts: const [], projects: repositories,
           initiallySelectedIds: selectedProjects,
         )),
       );
       if (selected == null) return;
       await prefs.setStringList('github_selected_projects', selected.toList());
-      await prefs.setStringList('github_selected_artifact_ids', artifacts
-          .where((a) => selected.contains(a.repository))
-          .map((a) => a.id).toList());
+      if (selected.isEmpty) {
+        await prefs.setStringList('github_selected_artifact_ids', []);
+        await prefs.setString('github_artifacts_cache', '[]');
+        await DiagnosticLog.write('github_artifacts_selected', 'count=0');
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+      if (!mounted) return;
+      setState(() => _status = '선택한 ${selected.length}개 프로젝트의 성공한 아티팩트만 조회하고 있습니다.');
+      await DiagnosticLog.write('github_selected_artifact_fetch_started', 'repositories=${selected.length}');
+      final artifacts = await GithubAuthService.fetchArtifacts(repositories: selected.toList());
+      await DiagnosticLog.write('github_artifact_fetch_completed', 'count=${artifacts.length}');
+      await prefs.setStringList('github_selected_artifact_ids', artifacts.map((a) => a.id).toList());
       await prefs.setString('github_artifacts_cache',
         jsonEncode(artifacts.map((a) => a.toJson()).toList()));
       await DiagnosticLog.write('github_artifacts_selected', 'count=${selected.length}');
       if (!mounted) return;
+      setState(() => _status = '조회가 완료되었습니다. 메인 화면에 결과를 표시합니다.');
       Navigator.pop(context);
     } catch (error, stack) {
       await DiagnosticLog.write('github_connection_failed', error.toString(), stack.toString());
@@ -1159,7 +1164,7 @@ class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 5),
                       child: Text(latest == null
-                          ? '성공한 빌드의 아티팩트가 없습니다.'
+                          ? '선택 후 성공한 빌드의 아티팩트를 조회합니다.'
                           : '${latest.title} · ${latest.createdAt.toLocal()}'),
                     ),
                     isThreeLine: false,
