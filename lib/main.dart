@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.9';
+const String appVersion = '0.2.10';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +46,88 @@ class DiagnosticLog {
       }
     } catch (_) {}
   }
+
+  static Future<String> read() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/my_latest_artifacts.log');
+      if (!await file.exists()) return '';
+      return await file.readAsString();
+    } catch (error, stack) {
+      return '로그 파일을 읽지 못했습니다.\\n$error\\n$stack';
+    }
+  }
+}
+
+class DiagnosticLogPage extends StatefulWidget {
+  const DiagnosticLogPage({super.key});
+
+  @override
+  State<DiagnosticLogPage> createState() => _DiagnosticLogPageState();
+}
+
+class _DiagnosticLogPageState extends State<DiagnosticLogPage> {
+  String _content = '';
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    final content = await DiagnosticLog.read();
+    if (!mounted) return;
+    setState(() {
+      _content = content;
+      _loading = false;
+    });
+  }
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: _content));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('진단 로그를 복사했습니다.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('진단 로그'),
+      actions: [
+        IconButton(
+          tooltip: '새로고침',
+          onPressed: _reload,
+          icon: const Icon(Icons.refresh),
+        ),
+        IconButton(
+          tooltip: '로그 복사',
+          onPressed: _content.isEmpty ? null : _copy,
+          icon: const Icon(Icons.copy),
+        ),
+      ],
+    ),
+    body: _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _content.isEmpty
+            ? const Center(child: Text('아직 기록된 진단 로그가 없습니다.'))
+            : SelectionArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: SelectableText(
+                    _content,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ),
+  );
 }
 
 const List<String> supportedPlatforms = [
@@ -315,17 +398,23 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
   Future<void> _connect() async {
     if (_busy) return;
     setState(() { _busy = true; _status = 'GitHub 인증을 준비하고 있습니다.'; _userCode = null; });
+    await DiagnosticLog.write('github_connect_started', 'GitHub connection flow started');
     try {
       if (!await GithubAuthService.isSignedIn) {
         final code = await GithubAuthService.requestDeviceCode();
+        await DiagnosticLog.write('github_device_code_received', 'Device code received; code value excluded');
         if (!mounted) return;
         setState(() { _userCode = code.userCode; _status = '브라우저에서 GitHub에 로그인한 뒤 아래 코드를 입력해 주세요.'; });
         await launchUrl(Uri.parse(code.verificationUri), mode: LaunchMode.externalApplication);
+        await DiagnosticLog.write('github_verification_opened', 'GitHub verification page opened');
         await GithubAuthService.pollForToken(code);
+        await DiagnosticLog.write('github_auth_completed', 'GitHub device authorization completed');
       }
       if (!mounted) return;
       setState(() => _status = '저장소와 실제 Actions 아티팩트를 조회하고 있습니다.');
+      await DiagnosticLog.write('github_artifact_fetch_started', 'Fetching repositories and successful artifacts');
       final artifacts = await GithubAuthService.fetchArtifacts();
+      await DiagnosticLog.write('github_artifact_fetch_completed', 'count=${artifacts.length}');
       final prefs = await SharedPreferences.getInstance();
       final oldIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
       final oldProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
@@ -362,7 +451,18 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: _loginAppBarTitle('GitHub')),
+    appBar: AppBar(
+      title: _loginAppBarTitle('GitHub'),
+      actions: [
+        IconButton(
+          tooltip: '진단 로그',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const DiagnosticLogPage()),
+          ),
+          icon: const Icon(Icons.receipt_long_outlined),
+        ),
+      ],
+    ),
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -534,6 +634,13 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: '진단 로그',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const DiagnosticLogPage()),
+            ),
+            icon: const Icon(Icons.receipt_long_outlined),
+          ),
           IconButton(
             tooltip: '앱 정보',
             onPressed: _showAbout,
