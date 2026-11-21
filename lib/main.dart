@@ -677,6 +677,7 @@ class PlatformCredentials {
       'platform_${platform.toLowerCase().replaceAll(' ', '_')}_$field';
 
   static Future<bool> hasCredentials(String platform) async {
+    if (platform == 'GitHub') return GithubAuthService.isSignedIn;
     final id = await _storage.read(key: _key(platform, 'id'));
     final secret = await _storage.read(key: _key(platform, 'secret'));
     return (id?.isNotEmpty ?? false) && (secret?.isNotEmpty ?? false);
@@ -693,6 +694,10 @@ class PlatformCredentials {
   }
 
   static Future<void> delete(String platform) async {
+    if (platform == 'GitHub') {
+      await GithubAuthService.clearSession();
+      return;
+    }
     await _storage.delete(key: _key(platform, 'id'));
     await _storage.delete(key: _key(platform, 'secret'));
   }
