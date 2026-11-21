@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const String appVersion = '0.2.6';
+const String appVersion = '0.2.7';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -760,6 +760,104 @@ class _PlatformCredentialDialogState extends State<PlatformCredentialDialog> {
       ),
     ],
   );
+}
+
+
+/// Intermediate selection screen. The list is populated by platform API adapters.
+class ArtifactItem {
+  const ArtifactItem({required this.id, required this.title, required this.platform, required this.project, required this.description, required this.createdAt, this.downloadUrl});
+  final String id;
+  final String title;
+  final String platform;
+  final String project;
+  final String description;
+  final DateTime createdAt;
+  final String? downloadUrl;
+}
+
+class ArtifactSelectionPage extends StatefulWidget {
+  const ArtifactSelectionPage({super.key, required this.platform, required this.artifacts, required this.initiallySelectedIds});
+  final String platform;
+  final List<ArtifactItem> artifacts;
+  final Set<String> initiallySelectedIds;
+  @override
+  State<ArtifactSelectionPage> createState() => _ArtifactSelectionPageState();
+}
+
+class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
+  late Set<String> selectedIds;
+  @override
+  void initState() {
+    super.initState();
+    selectedIds = Set<String>.from(widget.initiallySelectedIds);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final artifacts = [...widget.artifacts]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${widget.platform} 아티팩트 선택'),
+        actions: [
+          TextButton(
+            onPressed: () => setState(() {
+              if (selectedIds.length == artifacts.length) {
+                selectedIds.clear();
+              } else {
+                selectedIds..clear()..addAll(artifacts.map((item) => item.id));
+              }
+            }),
+            child: Text(selectedIds.length == artifacts.length ? '전체 해제' : '전체 선택'),
+          ),
+        ],
+      ),
+      body: artifacts.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.inventory_2_outlined, size: 56, color: Color(0xFF9AA4B2)),
+                    SizedBox(height: 14),
+                    Text('표시할 아티팩트가 없습니다', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    SizedBox(height: 8),
+                    Text('사이트 인증과 아티팩트 API 연결이 완료되면\n이곳에 실제 아티팩트가 체크박스로 표시됩니다.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, height: 1.5)),
+                  ],
+                ),
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: artifacts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final item = artifacts[index];
+                return Card(
+                  elevation: 0,
+                  color: Colors.white,
+                  child: CheckboxListTile(
+                    value: selectedIds.contains(item.id),
+                    onChanged: (checked) => setState(() {
+                      if (checked == true) { selectedIds.add(item.id); } else { selectedIds.remove(item.id); }
+                    }),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text('${item.project} · ${item.createdAt.toLocal()}\n${item.description}'),
+                    ),
+                    isThreeLine: true,
+                  ),
+                );
+              },
+            ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.all(16),
+        child: FilledButton(onPressed: () => Navigator.pop(context, selectedIds), child: Text('선택 완료 (${selectedIds.length})')),
+      ),
+    );
+  }
 }
 
 class PlatformSelectionDialog extends StatefulWidget {
