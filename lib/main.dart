@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const String appVersion = '0.2.5';
+const String appVersion = '0.2.6';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
