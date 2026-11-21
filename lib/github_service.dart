@@ -52,7 +52,13 @@ class GithubAuthService {
     if(expiry!=null&&DateTime.now().isAfter(expiry.subtract(const Duration(minutes:2)))){
       final refresh=await _storage.read(key:_refresh);
       if(refresh==null||refresh.isEmpty){await clearSession();throw Exception('로그인이 만료되었습니다. 다시 인증해 주세요.');}
-      final j=await _post(Uri.https('github.com','/login/oauth/access_token'),{'client_id':clientId,'grant_type':'refresh_token','refresh_token':refresh});
+      Map<String,dynamic> j;
+      try {
+        j=await _post(Uri.https('github.com','/login/oauth/access_token'),{'client_id':clientId,'grant_type':'refresh_token','refresh_token':refresh});
+      } catch (_) {
+        await clearSession();
+        rethrow;
+      }
       token=j['access_token'] as String?;
       if(token==null||token.isEmpty){await clearSession();throw Exception('인증 갱신에 실패했습니다. 다시 로그인해 주세요.');}
       await _storage.write(key:_access,value:token);
@@ -66,7 +72,12 @@ class GithubAuthService {
     try{
       final r=await c.getUrl(uri);r.headers.set(HttpHeaders.authorizationHeader,'Bearer ${await _token()}');r.headers.set(HttpHeaders.acceptHeader,'application/vnd.github+json');r.headers.set('X-GitHub-Api-Version','2022-11-28');r.headers.set(HttpHeaders.userAgentHeader,'My-Latest-Artifacts');
       final res=await r.close();final body=await utf8.decodeStream(res);
-      if(res.statusCode<200||res.statusCode>=300){var msg='요청을 처리하지 못했습니다.';try{msg=(jsonDecode(body) as Map<String,dynamic>)['message'] as String? ?? msg;}catch(_){}throw HttpException('GitHub API 오류 (${res.statusCode}): $msg');}
+      if(res.statusCode<200||res.statusCode>=300){
+        if(res.statusCode==401) await clearSession();
+        var msg='요청을 처리하지 못했습니다.';
+        try{msg=(jsonDecode(body) as Map<String,dynamic>)['message'] as String? ?? msg;}catch(_){}
+        throw HttpException('GitHub API 오류 (${res.statusCode}): $msg');
+      }
       return jsonDecode(body) as Map<String,dynamic>;
     }finally{c.close(force:true);}
   }
