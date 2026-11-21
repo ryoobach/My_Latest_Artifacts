@@ -779,7 +779,7 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) => SingleChildScrollView(child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text('선택된 개발 플랫폼',
@@ -846,7 +846,7 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
         },
       ),
     ],
-  );
+  ));
 }
 
 class PlatformCredentialDialog extends StatefulWidget {
