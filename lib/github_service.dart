@@ -70,9 +70,28 @@ class GithubAuthService {
       return jsonDecode(body) as Map<String,dynamic>;
     }finally{c.close(force:true);}
   }
+  static Future<List<dynamic>> _getList(Uri uri) async {
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(uri);
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${await _token()}');
+      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
+      request.headers.set('X-GitHub-Api-Version', '2022-11-28');
+      request.headers.set(HttpHeaders.userAgentHeader, 'My-Latest-Artifacts');
+      final response = await request.close();
+      final body = await utf8.decodeStream(response);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpException('GitHub 저장소 조회 오류 (${response.statusCode})');
+      }
+      return jsonDecode(body) as List<dynamic>;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   static Future<List<GithubArtifact>> fetchArtifacts() async {
     await _get(Uri.https('api.github.com','/user'));final repos=<Map<String,dynamic>>[];
-    for(var page=1;page<=20;page++){final j=await _get(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));final rows=j['items'] as List<dynamic>? ?? [];repos.addAll(rows.cast<Map<String,dynamic>>());if(rows.length<100)break;}
+    for(var page=1;page<=20;page++){final rows=await _getList(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));repos.addAll(rows.cast<Map<String,dynamic>>());if(rows.length<100)break;}
     final out=<GithubArtifact>[];
     for(final repo in repos){
       final owner=repo['owner']?['login'] as String? ?? '';final name=repo['name'] as String? ?? '';final full=repo['full_name'] as String? ?? '';if(owner.isEmpty||name.isEmpty||full.isEmpty)continue;
