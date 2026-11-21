@@ -517,7 +517,7 @@ class _EmptyState extends StatelessWidget {
         Text('선택한 프로젝트가 없습니다.',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
         SizedBox(height: 7),
-        Text('프로젝트를 추가하면 최신 아티팩트를\n이 화면에서 확인할 수 있습니다.',
+        Text('＋ 새 프로젝트를 눌러 개발 플랫폼을 추가하세요.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, height: 1.5)),
       ],
