@@ -88,7 +88,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x64-v0.2.1
-          path: My_Latest_Artifacts_Linux_x64.tar.gz
+          path: My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz
 
   ios:
     runs-on: macos-latest
@@ -106,7 +106,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ios-simulator-app-v0.2.1
-          path: My_Latest_Artifacts_iOS_Simulator.zip
+          path: My_Latest_Artifacts_iOS_Simulator_v0.2.1.zip
 
   package:
     needs: [android, windows, linux, ios]
@@ -118,9 +118,9 @@ jobs:
       - run: |
           mkdir -p package
           cp release-files/android-apk-v0.2.1/app-release.apk package/My_Latest_Artifacts_Android_v0.2.1.apk
-          cp release-files/windows-x64/My_Latest_Artifacts_Windows_x64.zip package/
-          cp release-files/linux-x64/My_Latest_Artifacts_Linux_x64.tar.gz package/
-          cp release-files/ios-simulator-app/My_Latest_Artifacts_iOS_Simulator.zip package/
+          cp release-files/windows-x64-v0.2.1/My_Latest_Artifacts_Windows_x64_v0.2.1.zip package/
+          cp release-files/linux-x64-v0.2.1/My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz package/
+          cp release-files/ios-simulator-app-v0.2.1/My_Latest_Artifacts_iOS_Simulator_v0.2.1.zip package/
           cd package
           zip -r ../My_Latest_Artifacts_v0.2.1.zip .
       - uses: actions/upload-artifact@v4
