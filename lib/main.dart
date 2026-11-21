@@ -10,7 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.14';
+const String appVersion = '0.2.15';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -823,25 +823,62 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
     return items;
   }
 
-  Future<void> _downloadArtifact(ArtifactItem item) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('아티팩트 다운로드'),
-        content: Text('${item.title}\\n${item.project}\\n\\n다운로드하시겠습니까?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('확인')),
-        ],
-      ),
-    );
-    if (ok != true) return;
+  Future<void> _downloadArtifact(
+    ArtifactItem item, {
+    List<ArtifactItem> availableSources = const [],
+  }) async {
+    // The main list is platform-aware. When more provider adapters are enabled,
+    // pass every downloadable source for this project here; a single source
+    // downloads immediately and multiple sources are presented for selection.
+    final choices = (availableSources.isEmpty ? <ArtifactItem>[item] : availableSources)
+        .where((candidate) => candidate.hasArtifact)
+        .toList();
+    if (choices.isEmpty) return;
+
+    ArtifactItem selected = choices.first;
+    if (choices.length > 1) {
+      final picked = await showDialog<ArtifactItem>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('다운로드할 플랫폼 선택'),
+          content: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: choices.map((choice) => ListTile(
+                leading: _platformMark(choice.platform, size: 20),
+                title: Text(choice.platform),
+                subtitle: Text(choice.title),
+                onTap: () => Navigator.pop(dialogContext, choice),
+              )).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('취소'),
+            ),
+          ],
+        ),
+      );
+      if (picked == null) return;
+      selected = picked;
+    }
+
     try {
+      await DiagnosticLog.write(
+        'artifact_download_started',
+        'platform=${selected.platform}; project=${selected.project}; artifact=${selected.title}',
+      );
       final artifact = GithubArtifact(
-        id: item.id, name: item.title, repository: item.project,
-        createdAt: item.createdAt, description: item.description,
+        id: selected.id, name: selected.title, repository: selected.project,
+        createdAt: selected.createdAt, description: selected.description,
       );
       final file = await GithubAuthService.download(artifact);
+      await DiagnosticLog.write(
+        'artifact_download_completed',
+        'platform=${selected.platform}; file=${file.path}',
+      );
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('다운로드 완료: ${file.path}'), duration: const Duration(seconds: 6)),
       );
@@ -939,10 +976,40 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
                             subtitle: Text(item.hasArtifact
                                 ? '${item.title} · ${item.createdAt.toLocal()}'
                                 : '성공한 빌드의 아티팩트가 없습니다.'),
-                            trailing: Icon(item.hasArtifact
-                                ? Icons.download_outlined
-                                : Icons.info_outline, color: Colors.black45),
-                            onTap: item.hasArtifact ? () => _downloadArtifact(item) : null,
+                            trailing: item.hasArtifact
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF0F2F5),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _platformMark(item.platform, size: 14),
+                                          const SizedBox(width: 5),
+                                          Text(item.platform,
+                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: '최신 성공 아티팩트 다운로드',
+                                      onPressed: () => _downloadArtifact(
+                                        item,
+                                        availableSources: items.where((candidate) =>
+                                          candidate.project == item.project &&
+                                          candidate.hasArtifact).toList(),
+                                      ),
+                                      icon: const Icon(Icons.download_outlined),
+                                    ),
+                                  ],
+                                )
+                              : const Icon(Icons.info_outline, color: Colors.black45),
+                          onTap: null,
                           ),
                         )),
                       ],
