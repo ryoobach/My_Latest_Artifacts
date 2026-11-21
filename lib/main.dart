@@ -21,14 +21,13 @@ void main() {
 }
 
 class DiagnosticLog {
-  static Future<void> write(String event, String message,
-      [String? stack]) async {
+  static Future<void> write(String event, String message, [String? stack]) async {
     try {
       final dir = await getApplicationDocumentsDirectory();
       final file = File('${dir.path}/my_latest_artifacts.log');
       final line = jsonEncode({
         'time': DateTime.now().toUtc().toIso8601String(),
-        'version': '0.1.0',
+        'version': '0.2.0',
         'platform': Platform.operatingSystem,
         'event': event,
         'message': message,
@@ -39,25 +38,17 @@ class DiagnosticLog {
         final lines = await file.readAsLines();
         await file.writeAsString(lines.skip(lines.length ~/ 2).join('\n') + '\n');
       }
-    } catch (_) {
-      // Diagnostics must never interrupt normal app usage.
-    }
+    } catch (_) {}
   }
 }
 
-class SavedProject {
-  const SavedProject({required this.name, required this.provider, required this.url});
-  final String name;
-  final String provider;
-  final String url;
-
-  Map<String, dynamic> toJson() => {'name': name, 'provider': provider, 'url': url};
-  factory SavedProject.fromJson(Map<String, dynamic> json) => SavedProject(
-    name: json['name'] as String,
-    provider: json['provider'] as String,
-    url: json['url'] as String,
-  );
-}
+const List<String> supportedPlatforms = [
+  'GitHub',
+  'GitLab',
+  'Bitbucket',
+  'Azure DevOps',
+  'Jenkins',
+];
 
 class MyLatestArtifactsApp extends StatelessWidget {
   const MyLatestArtifactsApp({super.key});
@@ -90,66 +81,78 @@ class ArtifactHomePage extends StatefulWidget {
 }
 
 class _ArtifactHomePageState extends State<ArtifactHomePage> {
-  List<SavedProject> projects = [];
+  Set<String> selectedPlatforms = {};
   bool loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProjects();
+    _loadSettings();
     DiagnosticLog.write('app_started', 'Application launched');
   }
 
-  Future<void> _loadProjects() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList('projects') ?? [];
-    final loaded = raw.map((e) =>
-        SavedProject.fromJson(jsonDecode(e) as Map<String, dynamic>)).toList();
-    if (!mounted) return;
-    setState(() {
-      projects = loaded;
-      loading = false;
-    });
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList('selected_platforms') ?? [];
+      if (!mounted) return;
+      setState(() {
+        selectedPlatforms = saved.where(supportedPlatforms.contains).toSet();
+        loading = false;
+      });
+    } catch (error, stack) {
+      DiagnosticLog.write('settings_load_failed', error.toString(), stack.toString());
+      if (mounted) setState(() => loading = false);
+    }
   }
 
-  Future<void> _addProject() async {
-    final result = await showDialog<SavedProject>(
+  Future<void> _editPlatforms() async {
+    final result = await showDialog<Set<String>>(
       context: context,
-      builder: (context) => const AddProjectDialog(),
+      builder: (_) => PlatformSelectionDialog(initial: selectedPlatforms),
     );
     if (result == null) return;
-    final updated = [...projects, result];
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(
-      'projects', updated.map((p) => jsonEncode(p.toJson())).toList());
+    await prefs.setStringList('selected_platforms', supportedPlatforms
+        .where(result.contains).toList());
     if (!mounted) return;
-    setState(() => projects = updated);
-    DiagnosticLog.write('project_added', '${result.provider}: ${result.url}');
+    setState(() => selectedPlatforms = result);
+    DiagnosticLog.write('platform_selection_saved', result.join(','));
   }
 
   void _showAbout() {
     showAboutDialog(
       context: context,
       applicationName: 'My Latest Artifacts',
-      applicationVersion: '0.1.0',
-      applicationIcon: Image.asset('js_logo.png', width: 64, height: 64,
-          fit: BoxFit.contain),
-      children: const [
-        SizedBox(height: 8),
-        Text('Ryoo jaesang & 최피디'),
-        SizedBox(height: 8),
-        Text('여러 개발 플랫폼의 최신 빌드 결과물을 한곳에서 확인합니다.'),
+      applicationVersion: '0.2.0',
+      applicationIcon: Image.asset('my latest artifacts icon.jpg',
+          width: 64, height: 64, fit: BoxFit.contain),
+      children: [
+        const SizedBox(height: 8),
+        const Text('Ryoo jaesang & 최피디'),
+        const SizedBox(height: 12),
+        Image.asset('js_logo.png', width: 112, height: 64, fit: BoxFit.contain),
+        const SizedBox(height: 8),
+        const Text('여러 개발 플랫폼의 최신 빌드 결과물을 한곳에서 확인합니다.'),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final sorted = [...projects]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Latest Artifacts',
-            style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Row(
+          children: [
+            Image.asset('my latest artifacts icon.jpg',
+                width: 34, height: 34, fit: BoxFit.contain),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('My Latest Artifacts',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: '앱 정보',
@@ -160,7 +163,7 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addProject,
+        onPressed: loading ? null : _editPlatforms,
         icon: const Icon(Icons.add),
         label: const Text('프로젝트 추가'),
       ),
@@ -180,44 +183,10 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
                           color: Colors.black54)),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: sorted.isEmpty
-                        ? _EmptyState(onAdd: _addProject)
-                        : ListView.separated(
-                            itemCount: sorted.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final project = sorted[index];
-                              return Card(
-                                elevation: 0,
-                                color: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: const BorderSide(color: Color(0xFFE7EAF0)),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(project.name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 16)),
-                                      const SizedBox(height: 5),
-                                      Text('${project.provider} · ${project.url}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              color: Colors.black54, fontSize: 12)),
-                                      const Divider(height: 22),
-                                      const Text('최신 아티팩트 정보를 아직 가져오지 못했습니다.',
-                                          style: TextStyle(color: Colors.black54)),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                    child: selectedPlatforms.isEmpty
+                        ? const _EmptyState()
+                        : _SelectedPlatformsState(platforms: supportedPlatforms
+                            .where(selectedPlatforms.contains).toList()),
                   ),
                 ],
               ),
@@ -227,88 +196,110 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onAdd});
-  final VoidCallback onAdd;
+  const _EmptyState();
 
   @override
-  Widget build(BuildContext context) => Center(
+  Widget build(BuildContext context) => const Center(
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.inventory_2_outlined, size: 58, color: Color(0xFF9AA4B2)),
-        const SizedBox(height: 14),
-        const Text('등록된 프로젝트가 없습니다',
+        Icon(Icons.inventory_2_outlined, size: 58, color: Color(0xFF9AA4B2)),
+        SizedBox(height: 14),
+        Text('등록된 프로젝트가 없습니다',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 7),
-        const Text('프로젝트를 추가하면 최신 아티팩트를\n이 화면에서 확인할 수 있습니다.',
+        SizedBox(height: 7),
+        Text('프로젝트를 추가하면 최신 아티팩트를\n이 화면에서 확인할 수 있습니다.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, height: 1.5)),
-        const SizedBox(height: 18),
-        OutlinedButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add),
-          label: const Text('첫 프로젝트 추가'),
-        ),
       ],
     ),
   );
 }
 
-class AddProjectDialog extends StatefulWidget {
-  const AddProjectDialog({super.key});
+class _SelectedPlatformsState extends StatelessWidget {
+  const _SelectedPlatformsState({required this.platforms});
+  final List<String> platforms;
 
   @override
-  State<AddProjectDialog> createState() => _AddProjectDialogState();
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('선택된 개발 플랫폼',
+          style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      ...platforms.map((platform) => Card(
+        elevation: 0,
+        color: Colors.white,
+        child: ListTile(
+          leading: const Icon(Icons.cloud_outlined),
+          title: Text(platform),
+          subtitle: const Text('계정 연결 및 아티팩트 조회 기능은 다음 개발 단계에서 연결됩니다.'),
+          dense: true,
+        ),
+      )),
+    ],
+  );
 }
 
-class _AddProjectDialogState extends State<AddProjectDialog> {
-  final nameController = TextEditingController();
-  final urlController = TextEditingController();
-  String provider = 'GitHub';
+class PlatformSelectionDialog extends StatefulWidget {
+  const PlatformSelectionDialog({super.key, required this.initial});
+  final Set<String> initial;
 
   @override
-  void dispose() {
-    nameController.dispose();
-    urlController.dispose();
-    super.dispose();
+  State<PlatformSelectionDialog> createState() => _PlatformSelectionDialogState();
+}
+
+class _PlatformSelectionDialogState extends State<PlatformSelectionDialog> {
+  late Set<String> checked;
+
+  @override
+  void initState() {
+    super.initState();
+    checked = Set<String>.from(widget.initial);
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('프로젝트 추가'),
-    content: SingleChildScrollView(
+    title: const Text('개발 플랫폼 선택'),
+    content: SizedBox(
+      width: 360,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DropdownButtonFormField<String>(
-            value: provider,
-            decoration: const InputDecoration(labelText: '플랫폼'),
-            items: const ['GitHub', 'GitLab', 'Bitbucket', 'Azure DevOps', 'Jenkins']
-                .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-            onChanged: (v) => setState(() => provider = v ?? provider),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('아티팩트를 확인할 사이트를 선택하세요.'),
           ),
-          const SizedBox(height: 12),
-          TextField(controller: nameController,
-              decoration: const InputDecoration(labelText: '프로젝트 이름')),
-          const SizedBox(height: 12),
-          TextField(controller: urlController,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: '프로젝트 주소')),
+          const SizedBox(height: 8),
+          ...supportedPlatforms.map((platform) => CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(platform),
+            value: checked.contains(platform),
+            onChanged: (value) => setState(() {
+              if (value == true) {
+                checked.add(platform);
+              } else {
+                checked.remove(platform);
+              }
+            }),
+          )),
+          const SizedBox(height: 4),
+          const Text(
+            '선택한 사이트는 다음 실행 때도 유지됩니다. 계정 인증 및 실제 아티팩트 자동 조회는 후속 연결이 필요합니다.',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
         ],
       ),
     ),
     actions: [
-      TextButton(onPressed: () => Navigator.pop(context),
-          child: const Text('취소')),
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('취소'),
+      ),
       FilledButton(
-        onPressed: () {
-          final name = nameController.text.trim();
-          final url = urlController.text.trim();
-          if (name.isEmpty || Uri.tryParse(url)?.hasScheme != true) return;
-          Navigator.pop(context,
-              SavedProject(name: name, provider: provider, url: url));
-        },
-        child: const Text('추가'),
+        onPressed: () => Navigator.pop(context, checked),
+        child: const Text('저장'),
       ),
     ],
   );
