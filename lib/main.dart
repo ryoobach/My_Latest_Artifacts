@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'github_service.dart';
 
-const String appVersion = '0.2.7';
+const String appVersion = '0.2.8';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -173,6 +175,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.platform == 'GitHub') return const GithubLoginPage();
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
@@ -370,6 +373,110 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+}
+
+
+class GithubLoginPage extends StatefulWidget {
+  const GithubLoginPage({super.key});
+  @override
+  State<GithubLoginPage> createState() => _GithubLoginPageState();
+}
+
+class _GithubLoginPageState extends State<GithubLoginPage> {
+  bool _busy = false;
+  String _status = 'GitHub 공식 Device Flow로 안전하게 연결합니다.';
+  String? _userCode;
+
+  Future<void> _openInstallPage() async {
+    final uri = Uri.parse('https://github.com/apps/my-latest-artifacts/installations/new');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      _notice('브라우저를 열지 못했습니다. GitHub에서 My Latest Artifacts 앱을 설치해 주세요.');
+    }
+  }
+
+  void _notice(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _connect() async {
+    if (_busy) return;
+    setState(() { _busy = true; _status = 'GitHub 인증을 준비하고 있습니다.'; _userCode = null; });
+    try {
+      if (!await GithubAuthService.isSignedIn) {
+        final code = await GithubAuthService.requestDeviceCode();
+        if (!mounted) return;
+        setState(() { _userCode = code.userCode; _status = '브라우저에서 GitHub에 로그인한 뒤 아래 코드를 입력해 주세요.'; });
+        await launchUrl(Uri.parse(code.verificationUri), mode: LaunchMode.externalApplication);
+        await GithubAuthService.pollForToken(code);
+      }
+      if (!mounted) return;
+      setState(() => _status = '저장소와 실제 Actions 아티팩트를 조회하고 있습니다.');
+      final artifacts = await GithubAuthService.fetchArtifacts();
+      final prefs = await SharedPreferences.getInstance();
+      final oldIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
+      final items = artifacts.map((a) => ArtifactItem(
+        id: a.id, title: a.name, platform: 'GitHub', project: a.repository,
+        description: a.description, createdAt: a.createdAt,
+      )).toList();
+      if (!mounted) return;
+      final selected = await Navigator.of(context).push<Set<String>>(
+        MaterialPageRoute(builder: (_) => ArtifactSelectionPage(
+          platform: 'GitHub', artifacts: items, initiallySelectedIds: oldIds,
+        )),
+      );
+      if (selected == null) return;
+      await prefs.setStringList('github_selected_artifact_ids', selected.toList());
+      await prefs.setString('github_artifacts_cache',
+        jsonEncode(artifacts.map((a) => a.toJson()).toList()));
+      await DiagnosticLog.write('github_artifacts_selected', 'count=${selected.length}');
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (error, stack) {
+      await DiagnosticLog.write('github_connection_failed', error.toString(), stack.toString());
+      if (mounted) setState(() => _status = '연결 또는 조회에 실패했습니다. GitHub 앱 설치와 저장소 권한을 확인해 주세요. ${error.toString()}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('GitHub 연결')),
+    body: Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Card(
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.account_tree_outlined, size: 54),
+                const SizedBox(height: 14),
+                const Text('GitHub 계정 연결', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                const Text('비밀번호를 앱에 입력하지 않습니다. GitHub 공식 인증 페이지에서 승인해 주세요.', textAlign: TextAlign.center),
+                const SizedBox(height: 18),
+                if (_userCode != null) SelectableText(_userCode!, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 3)),
+                Text(_status, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+                const SizedBox(height: 20),
+                SizedBox(width: double.infinity, child: FilledButton(
+                  onPressed: _busy ? null : _connect,
+                  child: _busy ? const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)) : Text(_userCode == null ? 'GitHub 로그인 및 아티팩트 조회' : '인증 완료 대기 중'),
+                )),
+                const SizedBox(height: 8),
+                TextButton(onPressed: _busy ? null : _openInstallPage, child: const Text('GitHub 앱 설치 / 저장소 권한 설정')),
+                const SizedBox(height: 8),
+                const Text('처음 한 번 승인하면 인증 토큰은 기기의 보안 저장소에 보관됩니다. GitHub 앱이 설치된 저장소의 Actions 권한이 있어야 아티팩트를 조회할 수 있습니다.', style: TextStyle(fontSize: 12, color: Colors.black54), textAlign: TextAlign.center),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class ArtifactHomePage extends StatefulWidget {
@@ -570,6 +677,7 @@ class PlatformCredentials {
       'platform_${platform.toLowerCase().replaceAll(' ', '_')}_$field';
 
   static Future<bool> hasCredentials(String platform) async {
+    if (platform == 'GitHub') return GithubAuthService.isSignedIn;
     final id = await _storage.read(key: _key(platform, 'id'));
     final secret = await _storage.read(key: _key(platform, 'secret'));
     return (id?.isNotEmpty ?? false) && (secret?.isNotEmpty ?? false);
@@ -586,6 +694,10 @@ class PlatformCredentials {
   }
 
   static Future<void> delete(String platform) async {
+    if (platform == 'GitHub') {
+      await GithubAuthService.clearSession();
+      return;
+    }
     await _storage.delete(key: _key(platform, 'id'));
     await _storage.delete(key: _key(platform, 'secret'));
   }
@@ -609,8 +721,65 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
     if (mounted) setState(() {});
   }
 
+  Future<List<ArtifactItem>> _loadSelectedArtifacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (await GithubAuthService.isSignedIn) {
+      try {
+        final fresh = await GithubAuthService.fetchArtifacts();
+        await prefs.setString('github_artifacts_cache', jsonEncode(fresh.map((a) => a.toJson()).toList()));
+      } catch (error, stack) {
+        await DiagnosticLog.write('github_auto_refresh_failed', error.toString(), stack.toString());
+      }
+    }
+    final raw = prefs.getString('github_artifacts_cache');
+    final selected = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
+    if (raw == null || selected.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    final all = decoded.map((e) => GithubArtifact.fromJson(e as Map<String, dynamic>))
+        .where((a) => selected.contains(a.id)).toList();
+    final latestByProject = <String, GithubArtifact>{};
+    for (final artifact in all) {
+      final old = latestByProject[artifact.repository];
+      if (old == null || artifact.createdAt.isAfter(old.createdAt)) {
+        latestByProject[artifact.repository] = artifact;
+      }
+    }
+    return latestByProject.values.map((a) => ArtifactItem(
+      id: a.id, title: a.name, platform: 'GitHub', project: a.repository,
+      description: a.description, createdAt: a.createdAt,
+    )).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  Future<void> _downloadArtifact(ArtifactItem item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('아티팩트 다운로드'),
+        content: Text('${item.title}\n${item.project}\n\n다운로드하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('OK')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final artifact = GithubArtifact(
+        id: item.id, name: item.title, repository: item.project,
+        createdAt: item.createdAt, description: item.description,
+      );
+      final file = await GithubAuthService.download(artifact);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('다운로드 완료: ${file.path}'), duration: const Duration(seconds: 6)),
+      );
+    } catch (error, stack) {
+      await DiagnosticLog.write('artifact_download_failed', error.toString(), stack.toString());
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('다운로드 실패: $error')));
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) => SingleChildScrollView(child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text('선택된 개발 플랫폼',
@@ -640,11 +809,44 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
       )),
       const SizedBox(height: 8),
       const Text(
-        '플랫폼을 누르면 인증 정보를 입력하거나 변경할 수 있습니다. 실제 계정 인증과 아티팩트 자동 조회는 각 사이트 API 연결 단계에서 활성화됩니다.',
+        '플랫폼을 선택해 공식 계정을 연결하고 실제 아티팩트를 선택하세요.',
         style: TextStyle(fontSize: 12, color: Colors.black54),
       ),
+      const SizedBox(height: 14),
+      FutureBuilder<List<ArtifactItem>>(
+        future: _loadSelectedArtifacts(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
+          }
+          final items = snapshot.data ?? const <ArtifactItem>[];
+          if (items.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('선택한 아티팩트가 여기에 표시됩니다.', style: TextStyle(color: Colors.black54)),
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('선택된 최신 아티팩트', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              ...items.map((item) => Card(
+                elevation: 0,
+                color: Colors.white,
+                child: ListTile(
+                  title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text('${item.project} · ${item.createdAt.toLocal()}'),
+                  trailing: const Icon(Icons.download_outlined),
+                  onTap: () => _downloadArtifact(item),
+                ),
+              )),
+            ],
+          );
+        },
+      ),
     ],
-  );
+  ));
 }
 
 class PlatformCredentialDialog extends StatefulWidget {
@@ -822,7 +1024,7 @@ class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
                     SizedBox(height: 14),
                     Text('표시할 아티팩트가 없습니다', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                     SizedBox(height: 8),
-                    Text('사이트 인증과 아티팩트 API 연결이 완료되면\n이곳에 실제 아티팩트가 체크박스로 표시됩니다.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, height: 1.5)),
+                    Text('GitHub Actions 아티팩트가 없거나\n저장소의 Actions 읽기 권한이 없을 수 있습니다.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, height: 1.5)),
                   ],
                 ),
               ),
@@ -905,7 +1107,7 @@ class _PlatformSelectionDialogState extends State<PlatformSelectionDialog> {
           )),
           const SizedBox(height: 4),
           const Text(
-            '선택한 사이트는 다음 실행 때도 유지됩니다. 계정 인증 및 실제 아티팩트 자동 조회는 후속 연결이 필요합니다.',
+            '선택한 사이트는 다음 실행 때도 유지됩니다. 실제 연동은 GitHub부터 순서대로 지원합니다.',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
         ],
