@@ -10,7 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.10';
+const String appVersion = '0.2.11';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -413,7 +413,9 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
       if (!mounted) return;
       setState(() => _status = '저장소와 실제 Actions 아티팩트를 조회하고 있습니다.');
       await DiagnosticLog.write('github_artifact_fetch_started', 'Fetching repositories and successful artifacts');
-      final artifacts = await GithubAuthService.fetchArtifacts();
+      final repositories = await GithubAuthService.fetchRepositories();
+      await DiagnosticLog.write('github_repositories_fetch_completed', 'count=${repositories.length}');
+      final artifacts = await GithubAuthService.fetchArtifacts(repositories: repositories);
       await DiagnosticLog.write('github_artifact_fetch_completed', 'count=${artifacts.length}');
       final prefs = await SharedPreferences.getInstance();
       final oldIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
@@ -428,7 +430,8 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
       if (!mounted) return;
       final selected = await Navigator.of(context).push<Set<String>>(
         MaterialPageRoute(builder: (_) => ArtifactSelectionPage(
-          platform: 'GitHub', artifacts: items, initiallySelectedIds: selectedProjects,
+          platform: 'GitHub', artifacts: items, projects: repositories,
+          initiallySelectedIds: selectedProjects,
         )),
       );
       if (selected == null) return;
@@ -745,6 +748,14 @@ class _SelectedPlatformsState extends StatefulWidget {
 }
 
 class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
+  late String activePlatform;
+
+  @override
+  void initState() {
+    super.initState();
+    activePlatform = widget.platforms.first;
+  }
+
   Future<void> _openPlatform(String platform) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => LoginPage(platform: platform)),
@@ -752,11 +763,16 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
     if (mounted) setState(() {});
   }
 
-  Future<List<ArtifactItem>> _loadSelectedArtifacts() async {
+  Future<List<ArtifactItem>> _loadSelectedArtifacts(String platform) async {
+    if (platform != 'GitHub') return <ArtifactItem>[];
     final prefs = await SharedPreferences.getInstance();
+    final selectedProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
+    if (selectedProjects.isEmpty) return <ArtifactItem>[];
     if (await GithubAuthService.isSignedIn) {
       try {
-        final fresh = await GithubAuthService.fetchArtifacts();
+        final fresh = await GithubAuthService.fetchArtifacts(
+          repositories: selectedProjects.toList(),
+        );
         await prefs.setString('github_artifacts_cache',
             jsonEncode(fresh.map((a) => a.toJson()).toList()));
       } catch (error, stack) {
@@ -764,17 +780,11 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
       }
     }
     final raw = prefs.getString('github_artifacts_cache');
-    final selectedProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
-    final selectedIds = (prefs.getStringList('github_selected_artifact_ids') ?? []).toSet();
-    if (raw == null) return [];
+    if (raw == null) return <ArtifactItem>[];
     final decoded = jsonDecode(raw) as List<dynamic>;
     final all = decoded.map((e) => GithubArtifact.fromJson(e as Map<String, dynamic>)).toList();
-    final projects = selectedProjects.isNotEmpty
-        ? selectedProjects
-        : all.where((a) => selectedIds.contains(a.id)).map((a) => a.repository).toSet();
-    if (projects.isEmpty) return [];
     final latestByProject = <String, GithubArtifact>{};
-    for (final artifact in all.where((a) => projects.contains(a.repository))) {
+    for (final artifact in all.where((a) => selectedProjects.contains(a.repository))) {
       final old = latestByProject[artifact.repository];
       if (old == null || artifact.createdAt.isAfter(old.createdAt)) {
         latestByProject[artifact.repository] = artifact;
@@ -817,82 +827,116 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
   }
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    child: Column(
+  Widget build(BuildContext context) {
+    final platforms = widget.platforms;
+    if (!platforms.contains(activePlatform)) activePlatform = platforms.first;
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: widget.platforms.map((platform) {
+            children: platforms.map((platform) {
+              final selected = activePlatform == platform;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: FutureBuilder<bool>(
-                  future: PlatformCredentials.hasCredentials(platform),
-                  builder: (context, snapshot) {
-                    final connected = snapshot.data == true;
-                    return OutlinedButton.icon(
-                      onPressed: () => _openPlatform(platform),
-                      icon: Icon(
-                        connected ? Icons.verified_user_outlined : Icons.login,
-                        size: 18,
-                      ),
-                      label: Text(platform),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: connected ? const Color(0xFFEAF4EE) : Colors.white,
-                        foregroundColor: const Color(0xFF263445),
-                        side: BorderSide(color: connected ? const Color(0xFF8BC5A0) : const Color(0xFFD7DDE5)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                    );
-                  },
+                child: ChoiceChip(
+                  selected: selected,
+                  avatar: _platformMark(platform, size: 16),
+                  label: Text(platform),
+                  onSelected: (_) => setState(() => activePlatform = platform),
+                  selectedColor: const Color(0xFFDCE8FF),
+                  backgroundColor: Colors.white,
+                  side: BorderSide(
+                    color: selected ? const Color(0xFF4267B2) : const Color(0xFFD7DDE5),
+                  ),
                 ),
               );
             }).toList(),
           ),
         ),
         const SizedBox(height: 18),
-        FutureBuilder<List<ArtifactItem>>(
-          future: _loadSelectedArtifacts(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            final items = snapshot.data ?? const <ArtifactItem>[];
-            if (items.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('선택한 프로젝트가 없습니다.',
-                    style: TextStyle(color: Colors.black54)),
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('프로젝트별 최신 성공 아티팩트',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                ...items.map((item) => Card(
-                  elevation: 0,
-                  color: Colors.white,
-                  child: ListTile(
-                    title: Text(item.title,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('${item.project} · ${item.createdAt.toLocal()}'),
-                    trailing: const Icon(Icons.download_outlined),
-                    onTap: () => _downloadArtifact(item),
+        Expanded(
+          child: activePlatform == 'GitHub'
+              ? FutureBuilder<List<ArtifactItem>>(
+                  key: ValueKey(activePlatform),
+                  future: _loadSelectedArtifacts(activePlatform),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final items = snapshot.data ?? const <ArtifactItem>[];
+                    if (items.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.inventory_2_outlined, size: 56, color: Color(0xFF9AA4B2)),
+                              SizedBox(height: 14),
+                              Text('표시할 아티팩트가 없습니다.',
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                              SizedBox(height: 8),
+                              Text('체크한 프로젝트에 성공한 빌드의 아티팩트가 생성되면 여기에 표시됩니다.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.black54, height: 1.5)),
+                              SizedBox(height: 12),
+                              Text('상단의 GitHub 탭을 눌러 프로젝트를 선택하거나 연결할 수 있습니다.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Colors.black54)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    return ListView(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 8),
+                          child: Text('프로젝트별 가장 최근 성공 빌드의 아티팩트',
+                              style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                        ...items.map((item) => Card(
+                          elevation: 0,
+                          color: Colors.white,
+                          child: ListTile(
+                            title: Text(item.project,
+                                style: const TextStyle(fontWeight: FontWeight.w700)),
+                            subtitle: Text('${item.title} · ${item.createdAt.toLocal()}'),
+                            trailing: const Icon(Icons.download_outlined),
+                            onTap: () => _downloadArtifact(item),
+                          ),
+                        )),
+                      ],
+                    );
+                  },
+                )
+              : Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _platformMark(activePlatform, size: 38),
+                      const SizedBox(height: 14),
+                      Text('$activePlatform 연동 준비 중',
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      const Text('현재 이 플랫폼의 로그인 및 아티팩트 조회 기능은 아직 연결되지 않았습니다.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black54)),
+                      const SizedBox(height: 14),
+                      OutlinedButton.icon(
+                        onPressed: () => _openPlatform(activePlatform),
+                        icon: const Icon(Icons.login),
+                        label: Text('$activePlatform 연결'),
+                      ),
+                    ],
                   ),
-                )),
-              ],
-            );
-          },
+                ),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class PlatformCredentialDialog extends StatefulWidget {
@@ -1024,9 +1068,10 @@ class ArtifactItem {
 }
 
 class ArtifactSelectionPage extends StatefulWidget {
-  const ArtifactSelectionPage({super.key, required this.platform, required this.artifacts, required this.initiallySelectedIds});
+  const ArtifactSelectionPage({super.key, required this.platform, required this.artifacts, required this.projects, required this.initiallySelectedIds});
   final String platform;
   final List<ArtifactItem> artifacts;
+  final List<String> projects;
   final Set<String> initiallySelectedIds;
   @override
   State<ArtifactSelectionPage> createState() => _ArtifactSelectionPageState();
@@ -1043,59 +1088,59 @@ class _ArtifactSelectionPageState extends State<ArtifactSelectionPage> {
   @override
   Widget build(BuildContext context) {
     final artifacts = [...widget.artifacts]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final projects = [...widget.projects]..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final latestByProject = <String, ArtifactItem>{};
+    for (final artifact in artifacts) {
+      latestByProject.putIfAbsent(artifact.project, () => artifact);
+    }
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.platform} 아티팩트 선택'),
+        title: Text('${widget.platform} 프로젝트 선택'),
         actions: [
           TextButton(
             onPressed: () => setState(() {
-              if (selectedIds.length == artifacts.length) {
+              if (selectedIds.length == projects.length) {
                 selectedIds.clear();
               } else {
-                selectedIds..clear()..addAll(artifacts.map((item) => item.project));
+                selectedIds..clear()..addAll(projects);
               }
             }),
-            child: Text(selectedIds.length == artifacts.length ? '전체 해제' : '전체 선택'),
+            child: Text(selectedIds.length == projects.length ? '전체 해제' : '전체 선택'),
           ),
         ],
       ),
-      body: artifacts.isEmpty
+      body: projects.isEmpty
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.inventory_2_outlined, size: 56, color: Color(0xFF9AA4B2)),
-                    SizedBox(height: 14),
-                    Text('표시할 아티팩트가 없습니다', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                    SizedBox(height: 8),
-                    Text('GitHub Actions 아티팩트가 없거나\n저장소의 Actions 읽기 권한이 없을 수 있습니다.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, height: 1.5)),
-                  ],
-                ),
+                child: Text('GitHub 저장소가 없습니다. 계정의 저장소 접근 권한을 확인해 주세요.',
+                    textAlign: TextAlign.center),
               ),
             )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: artifacts.length,
+              itemCount: projects.length,
               separatorBuilder: (_, __) => const SizedBox(height: 4),
               itemBuilder: (context, index) {
-                final item = artifacts[index];
+                final project = projects[index];
+                final latest = latestByProject[project];
                 return Card(
                   elevation: 0,
                   color: Colors.white,
                   child: CheckboxListTile(
-                    value: selectedIds.contains(item.project),
+                    value: selectedIds.contains(project),
                     onChanged: (checked) => setState(() {
-                      if (checked == true) { selectedIds.add(item.project); } else { selectedIds.remove(item.project); }
+                      if (checked == true) { selectedIds.add(project); } else { selectedIds.remove(project); }
                     }),
                     controlAffinity: ListTileControlAffinity.leading,
-                    title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(project, style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 5),
-                      child: Text('${item.project} · ${item.createdAt.toLocal()}\n${item.description}'),
+                      child: Text(latest == null
+                          ? '성공한 빌드의 아티팩트가 없습니다.'
+                          : '${latest.title} · ${latest.createdAt.toLocal()}'),
                     ),
-                    isThreeLine: true,
+                    isThreeLine: false,
                   ),
                 );
               },
