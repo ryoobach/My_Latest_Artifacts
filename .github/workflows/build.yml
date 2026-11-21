@@ -1,4 +1,4 @@
-name: Build My Latest Artifacts v0.2.1
+name: Build My Latest Artifacts v0.2.2
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
           exit 1
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apk-v0.2.1
+          name: android-apk-v0.2.2
           path: build/app/outputs/flutter-apk/app-release.apk
 
   windows:
@@ -66,11 +66,11 @@ jobs:
           '@ | python -
       - run: flutter build windows --release
       - shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windows_x64_v0.2.1.zip
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windowsv0.2.2.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-x64-v0.2.1
-          path: My_Latest_Artifacts_Windows_x64_v0.2.1.zip
+          name: windows-x64-v0.2.2
+          path: My_Latest_Artifacts_Windowsv0.2.2.zip
 
   linux:
     runs-on: ubuntu-latest
@@ -85,11 +85,11 @@ jobs:
       - run: dart run flutter_launcher_icons
       - name: Build Linux with compatibility for bundled JSON header warning
         run: CXXFLAGS='-Wno-error=deprecated-literal-operator' flutter build linux --release
-      - run: tar -czf My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz -C build/linux/x64/release/bundle .
+      - run: tar -czf My_Latest_Artifacts_Linuxv0.2.2.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-x64-v0.2.1
-          path: My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz
+          name: linux-x64-v0.2.2
+          path: My_Latest_Artifacts_Linuxv0.2.2.tar.gz
 
   ios:
     runs-on: macos-latest
@@ -103,11 +103,11 @@ jobs:
       - run: dart run flutter_launcher_icons
       # Simulator build does not require an Apple Development Team or provisioning profile.
       - run: flutter build ios --simulator --debug
-      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOS_Simulator_v0.2.1.zip
+      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOSv0.2.2.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-simulator-app-v0.2.1
-          path: My_Latest_Artifacts_iOS_Simulator_v0.2.1.zip
+          name: ios-simulator-app-v0.2.2
+          path: My_Latest_Artifacts_iOSv0.2.2.zip
 
   package:
     needs: [android, windows, linux, ios]
@@ -118,13 +118,13 @@ jobs:
           path: release-files
       - run: |
           mkdir -p package
-          cp release-files/android-apk-v0.2.1/app-release.apk package/My_Latest_Artifacts_Android_v0.2.1.apk
-          cp release-files/windows-x64-v0.2.1/My_Latest_Artifacts_Windows_x64_v0.2.1.zip package/
-          cp release-files/linux-x64-v0.2.1/My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz package/
-          cp release-files/ios-simulator-app-v0.2.1/My_Latest_Artifacts_iOS_Simulator_v0.2.1.zip package/
+          cp release-files/android-apk-v0.2.2/app-release.apk package/My_Latest_Artifacts_Androidv0.2.2.apk
+          cp release-files/windows-x64-v0.2.2/My_Latest_Artifacts_Windowsv0.2.2.zip package/
+          cp release-files/linux-x64-v0.2.2/My_Latest_Artifacts_Linuxv0.2.2.tar.gz package/
+          cp release-files/ios-simulator-app-v0.2.2/My_Latest_Artifacts_iOSv0.2.2.zip package/
           cd package
-          zip -r ../My_Latest_Artifacts_v0.2.1.zip .
+          zip -r ../My_Latest_Artifacts_v0.2.2.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: My_Latest_Artifacts_v0.2.1
-          path: My_Latest_Artifacts_v0.2.1.zip
+          name: My_Latest_Artifacts_v0.2.2
+          path: My_Latest_Artifacts_v0.2.2.zip

@@ -2,15 +2,11 @@
 
 Cross-platform dashboard for viewing the newest build artifact from each project.
 
-## Build 0.2.0
+## Build 0.2.2
 
-- Added a checkbox selection dialog for GitHub, GitLab, Bitbucket, Azure DevOps, and Jenkins.
-- Saves the selected platforms and restores them on the next launch.
-- Removed the empty-state "첫 프로젝트 추가" button; the persistent action is "+ 프로젝트 추가".
-- Shows the supplied app icon before the home-screen title and in the About dialog.
-- Includes the collaboration logo and exact credit "Ryoo jaesang & 최피디".
-- Generates a Windows `.ico` resource from the supplied app icon before building.
-- Keeps diagnostic logging with a 1 MB rotation cap.
+- Retains the platform-selection UI and saved settings from v0.2.1.
+- Updates platform package names to the agreed format: `My_Latest_Artifacts_Androidv0.2.2.apk`, `My_Latest_Artifacts_Windowsv0.2.2.zip`, `My_Latest_Artifacts_Linuxv0.2.2.tar.gz`, and `My_Latest_Artifacts_iOSv0.2.2.zip`.
+- Provides a combined archive named `My_Latest_Artifacts_v0.2.2.zip`.
 
 ## Important implementation status
 
@@ -18,12 +14,16 @@ This build is an intermediate UI and settings build. The selected platform list 
 
 ## Build outputs
 
-GitHub Actions prepares platform-specific packages and collects them in `My_Latest_Artifacts_v0.2.0.zip`.
+GitHub Actions prepares platform-specific packages and collects them in `My_Latest_Artifacts_v0.2.2.zip`.
 
 - Android: release APK.
 - Windows x64: ZIP containing the executable and required Flutter runtime files.
 - Linux x64: portable application bundle in a tar.gz archive.
 - iOS: unsigned simulator app bundle ZIP. It is not an installable iPhone IPA.
+
+## Windows security note
+
+The Windows executable is currently not Authenticode-signed. Windows or browser reputation checks may still show warnings for an unsigned or newly published executable. Rebuilding alone cannot guarantee that SmartScreen or Chrome Safe Browsing warnings disappear. Keep Windows and browser security protections enabled; a trusted code-signing certificate and signed release are needed to establish publisher reputation.
 
 ## Local development
 
