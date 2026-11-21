@@ -790,10 +790,21 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
         latestByProject[artifact.repository] = artifact;
       }
     }
-    return latestByProject.values.map((a) => ArtifactItem(
-      id: a.id, title: a.name, platform: 'GitHub', project: a.repository,
-      description: a.description, createdAt: a.createdAt,
-    )).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return selectedProjects.map((project) {
+      final artifact = latestByProject[project];
+      if (artifact == null) {
+        return ArtifactItem(
+          id: '', title: '', platform: 'GitHub', project: project,
+          description: '', createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+          hasArtifact: false,
+        );
+      }
+      return ArtifactItem(
+        id: artifact.id, title: artifact.name, platform: 'GitHub',
+        project: artifact.repository, description: artifact.description,
+        createdAt: artifact.createdAt,
+      );
+    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   Future<void> _downloadArtifact(ArtifactItem item) async {
@@ -909,9 +920,13 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
                           child: ListTile(
                             title: Text(item.project,
                                 style: const TextStyle(fontWeight: FontWeight.w700)),
-                            subtitle: Text('${item.title} · ${item.createdAt.toLocal()}'),
-                            trailing: const Icon(Icons.download_outlined),
-                            onTap: () => _downloadArtifact(item),
+                            subtitle: Text(item.hasArtifact
+                                ? '${item.title} · ${item.createdAt.toLocal()}'
+                                : '성공한 빌드의 아티팩트가 없습니다.'),
+                            trailing: Icon(item.hasArtifact
+                                ? Icons.download_outlined
+                                : Icons.info_outline, color: Colors.black45),
+                            onTap: item.hasArtifact ? () => _downloadArtifact(item) : null,
                           ),
                         )),
                       ],
@@ -1063,7 +1078,7 @@ class _PlatformCredentialDialogState extends State<PlatformCredentialDialog> {
 
 /// Intermediate selection screen. The list is populated by platform API adapters.
 class ArtifactItem {
-  const ArtifactItem({required this.id, required this.title, required this.platform, required this.project, required this.description, required this.createdAt, this.downloadUrl});
+  const ArtifactItem({required this.id, required this.title, required this.platform, required this.project, required this.description, required this.createdAt, this.downloadUrl, this.hasArtifact = true});
   final String id;
   final String title;
   final String platform;
@@ -1071,6 +1086,7 @@ class ArtifactItem {
   final String description;
   final DateTime createdAt;
   final String? downloadUrl;
+  final bool hasArtifact;
 }
 
 class ArtifactSelectionPage extends StatefulWidget {
