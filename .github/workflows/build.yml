@@ -1,4 +1,4 @@
-name: First Build
+name: Build My Latest Artifacts v0.2.1
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
           exit 1
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apk
+          name: android-apk-v0.2.1
           path: build/app/outputs/flutter-apk/app-release.apk
 
   windows:
@@ -66,17 +66,17 @@ jobs:
           '@ | python -
       - run: flutter build windows --release
       - shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windows_x64.zip
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windows_x64_v0.2.1.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-x64
-          path: My_Latest_Artifacts_Windows_x64.zip
+          name: windows-x64-v0.2.1
+          path: My_Latest_Artifacts_Windows_x64_v0.2.1.zip
 
   linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libstdc++-12-dev libsecret-1-dev
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -84,10 +84,10 @@ jobs:
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
       - run: flutter build linux --release
-      - run: tar -czf My_Latest_Artifacts_Linux_x64.tar.gz -C build/linux/x64/release/bundle .
+      - run: tar -czf My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-x64
+          name: linux-x64-v0.2.1
           path: My_Latest_Artifacts_Linux_x64.tar.gz
 
   ios:
@@ -102,10 +102,10 @@ jobs:
       - run: dart run flutter_launcher_icons
       # Simulator build does not require an Apple Development Team or provisioning profile.
       - run: flutter build ios --simulator --debug
-      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOS_Simulator.zip
+      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOS_Simulator_v0.2.1.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-simulator-app
+          name: ios-simulator-app-v0.2.1
           path: My_Latest_Artifacts_iOS_Simulator.zip
 
   package:
@@ -117,13 +117,13 @@ jobs:
           path: release-files
       - run: |
           mkdir -p package
-          cp release-files/android-apk/app-release.apk package/My_Latest_Artifacts_Android.apk
+          cp release-files/android-apk-v0.2.1/app-release.apk package/My_Latest_Artifacts_Android_v0.2.1.apk
           cp release-files/windows-x64/My_Latest_Artifacts_Windows_x64.zip package/
           cp release-files/linux-x64/My_Latest_Artifacts_Linux_x64.tar.gz package/
           cp release-files/ios-simulator-app/My_Latest_Artifacts_iOS_Simulator.zip package/
           cd package
-          zip -r ../My_Latest_Artifacts_v0.2.0.zip .
+          zip -r ../My_Latest_Artifacts_v0.2.1.zip .
       - uses: actions/upload-artifact@v4
         with:
-          name: My_Latest_Artifacts_v0.2.0
-          path: My_Latest_Artifacts_v0.2.0.zip
+          name: My_Latest_Artifacts_v0.2.1
+          path: My_Latest_Artifacts_v0.2.1.zip
