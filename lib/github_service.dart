@@ -24,7 +24,7 @@ class GithubAuthService {
   static Future<bool> get isSignedIn async=>(await _storage.read(key:_access))?.isNotEmpty ?? false;
   static Future<void> clearSession() async {await _storage.delete(key:_access);await _storage.delete(key:_refresh);await _storage.delete(key:_expiry);}
   static Future<GithubDeviceCode> requestDeviceCode() async {
-    final j=await _post(Uri.https('github.com','/login/device/code'),{'client_id':clientId});
+    final j=await _post(Uri.https('github.com','/login/device/code'),{'client_id':clientId,'scope':'offline_access'});
     return GithubDeviceCode(j['device_code'] as String,j['user_code'] as String,j['verification_uri'] as String,(j['interval'] as num?)?.toInt()??5,(j['expires_in'] as num?)?.toInt()??900);
   }
   static Future<void> pollForToken(GithubDeviceCode code) async {
