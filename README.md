@@ -2,22 +2,28 @@
 
 Cross-platform dashboard for viewing the newest build artifact from each project.
 
-## First build: 0.1.0
+## Build 0.2.0
 
-- Flutter application shell for Android, iOS, Windows x64, and Linux x64.
-- Stores the project entries entered in the app locally.
-- Includes the app information screen and the supplied collaboration logo.
-- Writes diagnostic logs locally, with a 1 MB size cap and no intentional collection of credentials.
-- The first build is a UI and installation prototype. Provider API connections, automatic latest-artifact discovery, and artifact downloading are not implemented yet.
+- Added a checkbox selection dialog for GitHub, GitLab, Bitbucket, Azure DevOps, and Jenkins.
+- Saves the selected platforms and restores them on the next launch.
+- Removed the empty-state "첫 프로젝트 추가" button; the persistent action is "+ 프로젝트 추가".
+- Shows the supplied app icon before the home-screen title and in the About dialog.
+- Includes the collaboration logo and exact credit "Ryoo jaesang & 최피디".
+- Generates a Windows `.ico` resource from the supplied app icon before building.
+- Keeps diagnostic logging with a 1 MB rotation cap.
+
+## Important implementation status
+
+This build is an intermediate UI and settings build. The selected platform list is saved, but provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. These require separate provider API and authentication implementations. Do not treat the platform selection screen as proof that artifact retrieval is already working.
 
 ## Build outputs
 
-GitHub Actions prepares platform-specific packages and collects them in `My_Latest_Artifacts_v0.1.0.zip`.
+GitHub Actions prepares platform-specific packages and collects them in `My_Latest_Artifacts_v0.2.0.zip`.
 
 - Android: release APK.
 - Windows x64: ZIP containing the executable and required Flutter runtime files.
 - Linux x64: portable application bundle in a tar.gz archive.
-- iOS: unsigned app bundle ZIP. A signed IPA requires Apple signing credentials and a distribution profile; this unsigned package cannot be installed directly on a physical iPhone.
+- iOS: unsigned simulator app bundle ZIP. It is not an installable iPhone IPA.
 
 ## Local development
 
@@ -27,5 +33,3 @@ Install the Flutter stable SDK, then run:
 flutter pub get
 flutter run
 ```
-
-The app icon source is `my latest artifacts icon.jpg`; the About screen uses `js_logo.png`.
