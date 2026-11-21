@@ -2,7 +2,7 @@ name: Build My Latest Artifacts v0.2.8
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/github-device-flow-v0.2.8]
   workflow_dispatch:
 
 permissions:
