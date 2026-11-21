@@ -92,6 +92,7 @@ class GithubAuthService {
       final response = await request.close();
       final body = await utf8.decodeStream(response);
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (response.statusCode == 401) await clearSession();
         throw HttpException('GitHub 저장소 조회 오류 (${response.statusCode})');
       }
       return jsonDecode(body) as List<dynamic>;
@@ -104,13 +105,25 @@ class GithubAuthService {
     await _get(Uri.https('api.github.com','/user'));final repos=<Map<String,dynamic>>[];
     for(var page=1;page<=20;page++){final rows=await _getList(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));repos.addAll(rows.cast<Map<String,dynamic>>());if(rows.length<100)break;}
     final out=<GithubArtifact>[];
+    var inaccessibleRepositories=0;
     for(final repo in repos){
       final owner=repo['owner']?['login'] as String? ?? '';final name=repo['name'] as String? ?? '';final full=repo['full_name'] as String? ?? '';if(owner.isEmpty||name.isEmpty||full.isEmpty)continue;
-      for(var page=1;page<=20;page++){
-        final j=await _get(Uri.https('api.github.com','/repos/$owner/$name/actions/artifacts',{'per_page':'100','page':'$page'}));final rows=j['artifacts'] as List<dynamic>? ?? [];
-        for(final raw in rows){final a=raw as Map<String,dynamic>;if(a['expired']==true)continue;final date=DateTime.tryParse(a['created_at'] as String? ?? '');if(date==null)continue;out.add(GithubArtifact(id:'$full:${a['id']}',name:a['name'] as String? ?? 'Artifact',repository:full,createdAt:date,description:'GitHub Actions 아티팩트'));}
-        if(rows.length<100)break;
+      try {
+        for(var page=1;page<=20;page++){
+          final j=await _get(Uri.https('api.github.com','/repos/$owner/$name/actions/artifacts',{'per_page':'100','page':'$page'}));final rows=j['artifacts'] as List<dynamic>? ?? [];
+          for(final raw in rows){final a=raw as Map<String,dynamic>;if(a['expired']==true)continue;final date=DateTime.tryParse(a['created_at'] as String? ?? '');if(date==null)continue;out.add(GithubArtifact(id:'$full:${a['id']}',name:a['name'] as String? ?? 'Artifact',repository:full,createdAt:date,description:'GitHub Actions 아티팩트'));}
+          if(rows.length<100)break;
+        }
+      } on HttpException catch (error) {
+        if(error.message.contains('(403)')||error.message.contains('(404)')) {
+          inaccessibleRepositories++;
+          continue;
+        }
+        rethrow;
       }
+    }
+    if(out.isEmpty && inaccessibleRepositories>0) {
+      throw Exception('아티팩트를 읽을 수 있는 저장소가 없습니다. GitHub 앱 설치 대상과 Actions 읽기 권한을 확인해 주세요.');
     }
     out.sort((a,b)=>b.createdAt.compareTo(a.createdAt));return out;
   }
