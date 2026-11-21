@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+const String appVersion = '0.2.3';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runZonedGuarded(() async {
@@ -28,7 +30,7 @@ class DiagnosticLog {
       final file = File('${dir.path}/my_latest_artifacts.log');
       final line = jsonEncode({
         'time': DateTime.now().toUtc().toIso8601String(),
-        'version': '0.2.1',
+        'version': appVersion,
         'platform': Platform.operatingSystem,
         'event': event,
         'message': message,
@@ -129,18 +131,44 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('앱 정보'),
-        content: Row(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('js_logo.png',
-                width: 88, height: 56, fit: BoxFit.contain),
-            const SizedBox(width: 12),
-            const Flexible(
-              child: Text(
-                'Ryoo jaesang & 최피디',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
+            Row(
+              children: [
+                Image.asset('my latest artifacts icon.jpg',
+                    width: 52, height: 52, fit: BoxFit.contain),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('My Latest Artifacts',
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.w700)),
+                      SizedBox(height: 4),
+                      Text('버전 $appVersion',
+                          style: TextStyle(color: Colors.black54)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Image.asset('js_logo.png',
+                    width: 58, height: 58, fit: BoxFit.contain),
+                const SizedBox(width: 12),
+                const Flexible(
+                  child: Text(
+                    'Ryoo jaesang & 최피디',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
