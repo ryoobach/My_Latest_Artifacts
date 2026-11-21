@@ -372,6 +372,7 @@ class _PlatformCredentialDialogState extends State<PlatformCredentialDialog> {
               children: [
                 TextField(
                   controller: _idController,
+                  onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'ID / 계정 이름',
                     border: OutlineInputBorder(),
@@ -381,6 +382,7 @@ class _PlatformCredentialDialogState extends State<PlatformCredentialDialog> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _secretController,
+                  onChanged: (_) => setState(() {}),
                   obscureText: _obscure,
                   decoration: InputDecoration(
                     labelText: '비밀번호 / API 토큰',
