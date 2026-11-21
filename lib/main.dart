@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-const String appVersion = '0.2.4';
+const String appVersion = '0.2.5';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +51,9 @@ const List<String> supportedPlatforms = [
   'Bitbucket',
   'Azure DevOps',
   'Jenkins',
+  'SourceForge',
+  'Gitea',
+  'Codeberg',
 ];
 
 class MyLatestArtifactsApp extends StatelessWidget {
@@ -71,7 +74,7 @@ class MyLatestArtifactsApp extends StatelessWidget {
           centerTitle: false,
         ),
       ),
-      home: const LoginPage(),
+      home: const ArtifactHomePage(),
     );
   }
 }
@@ -86,7 +89,8 @@ String _formattedToday() {
 }
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, required this.platform});
+  final String platform;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -117,7 +121,7 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     DiagnosticLog.write('login_attempt', 'Password login attempted; credentials excluded');
-    _showNotice('계정 인증 서버가 아직 연결되지 않았습니다. 인증 연동 후 사용할 수 있습니다.');
+    _showNotice('${widget.platform} 공식 인증 연동이 아직 설정되지 않았습니다.');
   }
 
   void _socialLogin(String provider) {
@@ -207,9 +211,9 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        '로그인',
-                        style: TextStyle(
+                      Text(
+                        '${widget.platform} 로그인',
+                        style: const TextStyle(
                           color: Colors.black54,
                           fontSize: 14,
                         ),
@@ -508,7 +512,7 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: loading ? null : _editPlatforms,
         icon: const Icon(Icons.add),
-        label: const Text('프로젝트 추가'),
+        label: const Text('새 프로젝트'),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -597,9 +601,10 @@ class _SelectedPlatformsState extends StatefulWidget {
 
 class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
   void _openCredentials(String platform) async {
-    await showDialog<void>(
-      context: context,
-      builder: (_) => PlatformCredentialDialog(platform: platform),
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => LoginPage(platform: platform),
+      ),
     );
     if (mounted) setState(() {});
   }
@@ -815,7 +820,7 @@ class _PlatformSelectionDialogState extends State<PlatformSelectionDialog> {
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, checked),
-        child: const Text('저장'),
+        child: const Text('추가'),
       ),
     ],
   );
