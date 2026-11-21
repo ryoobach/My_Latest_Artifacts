@@ -2,23 +2,27 @@
 
 Cross-platform dashboard for viewing the newest build artifact from each project.
 
-## Build 0.2.3
+## Build 0.2.4
 
+- Adds the initial login screen with ID and password fields side by side with the login button.
+- Displays Google, Facebook, KakaoTalk, and Naver sign-in choices below the login row. These are UI placeholders only: selecting one reports that OAuth setup is required; no provider authentication is active yet.
+- Adds the current date in YYYY-MM-DD format between the app identity row and the existing user/collaborator row in the About dialog.
 - Updates the About dialog to show the original app icon, app name, and version on the first row.
 - Shows the existing user/collaborator artwork `js_logo.png` beside `Ryoo jaesang & 최피디` on the second row. No additional "공동제작" caption is displayed.
 - Uses the exact agreed filenames for GitHub Actions artifacts and GitHub Release assets:
-  - `My_Latest_Artifacts_Androidv0.2.3.apk`
-  - `My_Latest_Artifacts_Windowsv0.2.3.zip`
-  - `My_Latest_Artifacts_Linuxv0.2.3.tar.gz`
-  - `My_Latest_Artifacts_iOSv0.2.3.zip`
-  - Combined: `My_Latest_Artifacts_v0.2.3.zip`
+  - `My_Latest_Artifacts_Androidv0.2.4.apk`
+  - `My_Latest_Artifacts_Windowsv0.2.4.zip`
+  - `My_Latest_Artifacts_Linuxv0.2.4.tar.gz`
+  - `My_Latest_Artifacts_iOSv0.2.4.zip`
+  - Combined: `My_Latest_Artifacts_v0.2.4.zip`
 - Publishes the five files as direct GitHub Release assets, avoiding an extra Actions-artifact ZIP wrapper for end-user downloads.
 - The combined ZIP contains the four platform files directly at its root.
 
 ## Authentication roadmap
 
-- The app's optional sign-in providers are planned in this order: Google first, followed by Naver, Kakao, and Facebook.
-- Real sign-in requires OAuth application registration, client identifiers/secrets, redirect URI configuration, and platform-specific callback setup. No nonfunctional sign-in buttons are presented as working authentication in this build.
+- The login screen presents Google, Facebook, KakaoTalk, and Naver choices in that order.
+- The current build contains the login UI only. Password login and social login are not connected to an authentication server or provider OAuth flow.
+- Real sign-in requires OAuth application registration, client identifiers/secrets, redirect URI configuration, and platform-specific callback setup.
 - Connecting GitHub, GitLab, Bitbucket, Azure DevOps, and Jenkins still requires each provider's own authorization and API integration. App sign-in does not grant access to those development-platform accounts.
 
 ## Important implementation status
