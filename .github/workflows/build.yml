@@ -2,7 +2,7 @@ name: Build My Latest Artifacts v0.2.10
 
 on:
   push:
-    branches: [main, feature/platform-buttons-persistent-artifacts-v0.2.10]
+    branches: [main, feature/platform-buttons-persistent-artifacts-v0.2.10, feature/diagnostic-log-viewer-v0.2.10]
   workflow_dispatch:
 
 permissions:
