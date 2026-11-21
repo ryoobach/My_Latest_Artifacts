@@ -129,10 +129,22 @@ class _ArtifactHomePageState extends State<ArtifactHomePage> {
           width: 64, height: 64, fit: BoxFit.contain),
       children: [
         const SizedBox(height: 8),
-        const Text('Ryoo jaesang & 최피디'),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Image.asset('js_logo.png',
+                width: 88, height: 56, fit: BoxFit.contain),
+            const SizedBox(width: 12),
+            const Flexible(
+              child: Text(
+                'Ryoo jaesang & 최피디',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
-        Image.asset('js_logo.png', width: 112, height: 64, fit: BoxFit.contain),
-        const SizedBox(height: 8),
         const Text('여러 개발 플랫폼의 최신 빌드 결과물을 한곳에서 확인합니다.'),
       ],
     );
