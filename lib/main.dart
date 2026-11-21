@@ -177,7 +177,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     if (widget.platform == 'GitHub') return const GithubLoginPage();
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.platform} 연결')),
+      appBar: AppBar(title: Text('${widget.platform} 로그인')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -291,7 +291,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('GitHub 연결')),
+    appBar: AppBar(title: const Text('GitHub 로그인')),
     body: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -304,7 +304,7 @@ class _GithubLoginPageState extends State<GithubLoginPage> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.account_tree_outlined, size: 54),
                 const SizedBox(height: 14),
-                const Text('GitHub 계정 연결', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+                const Text('GitHub 로그인', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 const Text('비밀번호를 앱에 입력하지 않습니다. GitHub 공식 인증 페이지에서 승인해 주세요.', textAlign: TextAlign.center),
                 const SizedBox(height: 18),
