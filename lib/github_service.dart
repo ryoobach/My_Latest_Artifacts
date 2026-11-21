@@ -118,70 +118,106 @@ class GithubAuthService {
   }
 
   static Future<List<GithubArtifact>> fetchArtifacts({List<String>? repositories}) async {
-    await _get(Uri.https('api.github.com','/user'));
-    final repos=<Map<String,dynamic>>[];
-    if(repositories==null){
-      for(var page=1;page<=20;page++){
-        final rows=await _getList(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));
-        repos.addAll(rows.cast<Map<String,dynamic>>());
-        if(rows.length<100)break;
+    await _get(Uri.https('api.github.com', '/user'));
+    final repos = <Map<String, dynamic>>[];
+    if (repositories == null) {
+      for (var page = 1; page <= 20; page++) {
+        final rows = await _getList(Uri.https('api.github.com', '/user/repos',
+            {'per_page': '100', 'sort': 'updated', 'page': '$page'}));
+        repos.addAll(rows.cast<Map<String, dynamic>>());
+        if (rows.length < 100) break;
       }
     } else {
-      for(final full in repositories){
-        final parts=full.split('/');
-        if(parts.length!=2)continue;
-        repos.add({'full_name':full,'name':parts[1],'owner':{'login':parts[0]}});
+      for (final full in repositories) {
+        final parts = full.split('/');
+        if (parts.length != 2) continue;
+        repos.add({
+          'full_name': full,
+          'name': parts[1],
+          'owner': {'login': parts[0]}
+        });
       }
     }
-    final out=<GithubArtifact>[];
-    final successfulRuns=<int,bool>{};
-    var inaccessibleRepositories=0;
-    for(final repo in repos){
-      final owner=repo['owner']?['login'] as String? ?? '';final name=repo['name'] as String? ?? '';final full=repo['full_name'] as String? ?? '';if(owner.isEmpty||name.isEmpty||full.isEmpty)continue;
-      try {
-        for(var page=1;page<=20;page++){
-          final j=await _get(Uri.https('api.github.com','/repos/$owner/$name/actions/artifacts',{'per_page':'100','page':'$page'}));final rows=j['artifacts'] as List<dynamic>? ?? [];
-          for(final raw in rows){
-            final a=raw as Map<String,dynamic>;
-            if(a['expired']==true)continue;
-            final date=DateTime.tryParse(a['created_at'] as String? ?? '');
-            if(date==null)continue;
-            final workflow=a['workflow_run'] as Map<String,dynamic>?;
-            final runId=(workflow?['id'] as num?)?.toInt();
-            if(runId==null)continue;
-            var successful=successfulRuns[runId];
-            if(successful==null){
-              final run=await _get(Uri.https('api.github.com','/repos/$owner/$name/actions/runs/$runId'));
-              successful=run['status']=='completed' && run['conclusion']=='success';
-              successfulRuns[runId]=successful;
+
+    // Fetch a repository's successful runs once, rather than requesting each
+    // artifact's workflow run individually. This cuts API calls substantially.
+    final out = <GithubArtifact>[];
+    var nextIndex = 0;
+    var inaccessibleRepositories = 0;
+    Future<void> worker() async {
+      while (true) {
+        final index = nextIndex++;
+        if (index >= repos.length) return;
+        final repo = repos[index];
+        final owner = repo['owner']?['login'] as String? ?? '';
+        final name = repo['name'] as String? ?? '';
+        final full = repo['full_name'] as String? ?? '';
+        if (owner.isEmpty || name.isEmpty || full.isEmpty) continue;
+        try {
+          final successfulRunIds = <int>{};
+          for (var page = 1; page <= 20; page++) {
+            final runsResponse = await _get(Uri.https(
+              'api.github.com',
+              '/repos/$owner/$name/actions/runs',
+              {'status': 'success', 'per_page': '100', 'page': '$page'},
+            ));
+            final runs = runsResponse['workflow_runs'] as List<dynamic>? ?? [];
+            for (final raw in runs) {
+              final run = raw as Map<String, dynamic>;
+              final id = (run['id'] as num?)?.toInt();
+              if (id != null) successfulRunIds.add(id);
             }
-            if(!successful)continue;
-            out.add(GithubArtifact(id:'$full:${a['id']}',name:a['name'] as String? ?? 'Artifact',repository:full,createdAt:date,description:'성공한 GitHub Actions 아티팩트'));
+            if (runs.length < 100) break;
           }
-          if(rows.length<100)break;
+
+          GithubArtifact? latestForRepository;
+          for (var page = 1; page <= 20; page++) {
+            final response = await _get(Uri.https(
+              'api.github.com',
+              '/repos/$owner/$name/actions/artifacts',
+              {'per_page': '100', 'page': '$page'},
+            ));
+            final rows = response['artifacts'] as List<dynamic>? ?? [];
+            for (final raw in rows) {
+              final artifact = raw as Map<String, dynamic>;
+              if (artifact['expired'] == true) continue;
+              final date = DateTime.tryParse(artifact['created_at'] as String? ?? '');
+              final workflow = artifact['workflow_run'] as Map<String, dynamic>?;
+              final runId = (workflow?['id'] as num?)?.toInt();
+              if (date == null || runId == null || !successfulRunIds.contains(runId)) continue;
+              final candidate = GithubArtifact(
+                id: '$full:${artifact['id']}',
+                name: artifact['name'] as String? ?? 'Artifact',
+                repository: full,
+                createdAt: date,
+                description: '성공한 GitHub Actions 아티팩트',
+              );
+              if (latestForRepository == null ||
+                  candidate.createdAt.isAfter(latestForRepository.createdAt)) {
+                latestForRepository = candidate;
+              }
+            }
+            if (rows.length < 100) break;
+          }
+          if (latestForRepository != null) out.add(latestForRepository);
+        } on HttpException catch (error) {
+          if (error.message.contains('(403)') || error.message.contains('(404)')) {
+            inaccessibleRepositories++;
+            continue;
+          }
+          rethrow;
         }
-      } on HttpException catch (error) {
-        if(error.message.contains('(403)')||error.message.contains('(404)')) {
-          inaccessibleRepositories++;
-          continue;
-        }
-        rethrow;
       }
     }
-    if(out.isEmpty && inaccessibleRepositories>0) {
+
+    // Keep a small concurrency limit to speed up multi-project lookups without
+    // overwhelming GitHub's API rate limits.
+    await Future.wait(List.generate(repos.length.clamp(1, 4), (_) => worker()));
+    if (out.isEmpty && inaccessibleRepositories > 0) {
       throw Exception('아티팩트를 읽을 수 있는 저장소가 없습니다. GitHub 앱 설치 대상과 Actions 읽기 권한을 확인해 주세요.');
     }
-    // Keep only the newest successful artifact for each repository.
-    final latestByRepository=<String,GithubArtifact>{};
-    for(final artifact in out){
-      final previous=latestByRepository[artifact.repository];
-      if(previous==null || artifact.createdAt.isAfter(previous.createdAt)){
-        latestByRepository[artifact.repository]=artifact;
-      }
-    }
-    final latest=latestByRepository.values.toList()
-      ..sort((a,b)=>b.createdAt.compareTo(a.createdAt));
-    return latest;
+    out.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return out;
   }
   static Future<File> download(GithubArtifact artifact) async {
     final parts=artifact.id.split(':');final repo=parts.first.split('/');if(parts.length!=2||repo.length!=2)throw Exception('아티팩트 정보가 올바르지 않습니다.');
