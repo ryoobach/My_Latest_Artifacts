@@ -101,9 +101,38 @@ class GithubAuthService {
     }
   }
 
-  static Future<List<GithubArtifact>> fetchArtifacts() async {
-    await _get(Uri.https('api.github.com','/user'));final repos=<Map<String,dynamic>>[];
-    for(var page=1;page<=20;page++){final rows=await _getList(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));repos.addAll(rows.cast<Map<String,dynamic>>());if(rows.length<100)break;}
+  static Future<List<String>> fetchRepositories() async {
+    await _get(Uri.https('api.github.com','/user'));
+    final names=<String>[];
+    for(var page=1;page<=20;page++){
+      final rows=await _getList(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));
+      for(final raw in rows){
+        final row=raw as Map<String,dynamic>;
+        final full=row['full_name'] as String?;
+        if(full!=null && full.isNotEmpty) names.add(full);
+      }
+      if(rows.length<100)break;
+    }
+    names.sort((a,b)=>a.toLowerCase().compareTo(b.toLowerCase()));
+    return names;
+  }
+
+  static Future<List<GithubArtifact>> fetchArtifacts({List<String>? repositories}) async {
+    await _get(Uri.https('api.github.com','/user'));
+    final repos=<Map<String,dynamic>>[];
+    if(repositories==null){
+      for(var page=1;page<=20;page++){
+        final rows=await _getList(Uri.https('api.github.com','/user/repos',{'per_page':'100','sort':'updated','page':'$page'}));
+        repos.addAll(rows.cast<Map<String,dynamic>>());
+        if(rows.length<100)break;
+      }
+    } else {
+      for(final full in repositories){
+        final parts=full.split('/');
+        if(parts.length!=2)continue;
+        repos.add({'full_name':full,'name':parts[1],'owner':{'login':parts[0]}});
+      }
+    }
     final out=<GithubArtifact>[];
     final successfulRuns=<int,bool>{};
     var inaccessibleRepositories=0;
