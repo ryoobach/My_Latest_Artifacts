@@ -121,7 +121,7 @@ class GithubAuthService {
       final req=await c.getUrl(Uri.https('api.github.com','/repos/${repo[0]}/${repo[1]}/actions/artifacts/${parts[1]}/zip'));
       req.headers.set(HttpHeaders.authorizationHeader,'Bearer ${await _token()}');req.headers.set(HttpHeaders.acceptHeader,'application/vnd.github+json');req.headers.set('X-GitHub-Api-Version','2022-11-28');req.headers.set(HttpHeaders.userAgentHeader,'My-Latest-Artifacts');
       final res=await req.close();if(res.statusCode<200||res.statusCode>=300)throw HttpException('다운로드 오류 (${res.statusCode})');
-      final bytes=await res.fold<List<int>>(<int>[],(all,chunk)=>all..addAll(chunk));final dir=await getApplicationDocumentsDirectory();final safe=artifact.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'),'_');final file=File('${dir.path}/$safe-${parts[1]}.zip');await file.writeAsBytes(bytes,flush:true);return file;
+      final bytes=await res.fold<List<int>>(<int>[],(all,chunk)=>all..addAll(chunk));final dir=await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();final safe=artifact.name.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'),'_');final file=File('${dir.path}/$safe-${parts[1]}.zip');await file.writeAsBytes(bytes,flush:true);return file;
     }finally{c.close(force:true);}
   }
   static Future<Map<String,dynamic>> _post(Uri uri,Map<String,String> fields,{bool allowError=false}) async {
