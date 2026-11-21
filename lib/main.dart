@@ -10,7 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.12';
+const String appVersion = '0.2.13';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -773,17 +773,9 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
     final prefs = await SharedPreferences.getInstance();
     final selectedProjects = (prefs.getStringList('github_selected_projects') ?? []).toSet();
     if (selectedProjects.isEmpty) return <ArtifactItem>[];
-    if (await GithubAuthService.isSignedIn) {
-      try {
-        final fresh = await GithubAuthService.fetchArtifacts(
-          repositories: selectedProjects.toList(),
-        );
-        await prefs.setString('github_artifacts_cache',
-            jsonEncode(fresh.map((a) => a.toJson()).toList()));
-      } catch (error, stack) {
-        await DiagnosticLog.write('github_auto_refresh_failed', error.toString(), stack.toString());
-      }
-    }
+    // The selection flow has already fetched the checked projects and saved
+    // their results. Render that cache immediately instead of making the same
+    // GitHub API requests again when returning to the main window.
     final raw = prefs.getString('github_artifacts_cache');
     if (raw == null) return <ArtifactItem>[];
     final decoded = jsonDecode(raw) as List<dynamic>;
@@ -795,7 +787,7 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
         latestByProject[artifact.repository] = artifact;
       }
     }
-    return selectedProjects.map((project) {
+    final items = selectedProjects.map((project) {
       final artifact = latestByProject[project];
       if (artifact == null) {
         return ArtifactItem(
@@ -809,7 +801,23 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
         project: artifact.repository, description: artifact.description,
         createdAt: artifact.createdAt,
       );
-    }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    }).toList();
+
+    // Newest artifact first. Projects without a successful artifact are
+    // always placed after dated results; ties are ordered by project name.
+    items.sort((a, b) {
+      if (a.hasArtifact != b.hasArtifact) return a.hasArtifact ? -1 : 1;
+      if (a.hasArtifact && b.hasArtifact) {
+        final byDate = b.createdAt.compareTo(a.createdAt);
+        if (byDate != 0) return byDate;
+      }
+      return a.project.toLowerCase().compareTo(b.project.toLowerCase());
+    });
+    await DiagnosticLog.write(
+      'github_main_list_sorted',
+      'count=${items.length}; order=${items.map((item) => item.hasArtifact ? '${item.project}:${item.createdAt.toIso8601String()}' : '${item.project}:no_artifact').join('|')}',
+    );
+    return items;
   }
 
   Future<void> _downloadArtifact(ArtifactItem item) async {
