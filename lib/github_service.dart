@@ -212,7 +212,8 @@ class GithubAuthService {
 
     // Keep a small concurrency limit to speed up multi-project lookups without
     // overwhelming GitHub's API rate limits.
-    await Future.wait(List.generate(repos.length.clamp(1, 4), (_) => worker()));
+    final workerCount = repos.isEmpty ? 1 : (repos.length < 4 ? repos.length : 4);
+    await Future.wait(List.generate(workerCount, (_) => worker()));
     if (out.isEmpty && inaccessibleRepositories > 0) {
       throw Exception('아티팩트를 읽을 수 있는 저장소가 없습니다. GitHub 앱 설치 대상과 Actions 읽기 권한을 확인해 주세요.');
     }
