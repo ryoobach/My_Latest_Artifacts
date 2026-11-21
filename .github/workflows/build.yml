@@ -1,4 +1,4 @@
-name: Build My Latest Artifacts v0.2.2
+name: Build My Latest Artifacts v0.2.3
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   android:
@@ -24,6 +24,7 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             if flutter build apk --release; then
+              cp build/app/outputs/flutter-apk/app-release.apk My_Latest_Artifacts_Androidv0.2.3.apk
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then
@@ -34,8 +35,9 @@ jobs:
           exit 1
       - uses: actions/upload-artifact@v4
         with:
-          name: android-apk-v0.2.2
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: My_Latest_Artifacts_Androidv0.2.3.apk
+          path: My_Latest_Artifacts_Androidv0.2.3.apk
+          if-no-files-found: error
 
   windows:
     runs-on: windows-latest
@@ -66,11 +68,12 @@ jobs:
           '@ | python -
       - run: flutter build windows --release
       - shell: pwsh
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windowsv0.2.2.zip
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath My_Latest_Artifacts_Windowsv0.2.3.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-x64-v0.2.2
-          path: My_Latest_Artifacts_Windowsv0.2.2.zip
+          name: My_Latest_Artifacts_Windowsv0.2.3.zip
+          path: My_Latest_Artifacts_Windowsv0.2.3.zip
+          if-no-files-found: error
 
   linux:
     runs-on: ubuntu-latest
@@ -85,11 +88,12 @@ jobs:
       - run: dart run flutter_launcher_icons
       - name: Build Linux with compatibility for bundled JSON header warning
         run: CXXFLAGS='-Wno-error=deprecated-literal-operator' flutter build linux --release
-      - run: tar -czf My_Latest_Artifacts_Linuxv0.2.2.tar.gz -C build/linux/x64/release/bundle .
+      - run: tar -czf My_Latest_Artifacts_Linuxv0.2.3.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-x64-v0.2.2
-          path: My_Latest_Artifacts_Linuxv0.2.2.tar.gz
+          name: My_Latest_Artifacts_Linuxv0.2.3.tar.gz
+          path: My_Latest_Artifacts_Linuxv0.2.3.tar.gz
+          if-no-files-found: error
 
   ios:
     runs-on: macos-latest
@@ -103,28 +107,54 @@ jobs:
       - run: dart run flutter_launcher_icons
       # Simulator build does not require an Apple Development Team or provisioning profile.
       - run: flutter build ios --simulator --debug
-      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOSv0.2.2.zip
+      - run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app My_Latest_Artifacts_iOSv0.2.3.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-simulator-app-v0.2.2
-          path: My_Latest_Artifacts_iOSv0.2.2.zip
+          name: My_Latest_Artifacts_iOSv0.2.3.zip
+          path: My_Latest_Artifacts_iOSv0.2.3.zip
+          if-no-files-found: error
 
-  package:
+  release:
     needs: [android, windows, linux, ios]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
+          name: My_Latest_Artifacts_Androidv0.2.3.apk
           path: release-files
-      - run: |
-          mkdir -p package
-          cp release-files/android-apk-v0.2.2/app-release.apk package/My_Latest_Artifacts_Androidv0.2.2.apk
-          cp release-files/windows-x64-v0.2.2/My_Latest_Artifacts_Windowsv0.2.2.zip package/
-          cp release-files/linux-x64-v0.2.2/My_Latest_Artifacts_Linuxv0.2.2.tar.gz package/
-          cp release-files/ios-simulator-app-v0.2.2/My_Latest_Artifacts_iOSv0.2.2.zip package/
-          cd package
-          zip -r ../My_Latest_Artifacts_v0.2.2.zip .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: My_Latest_Artifacts_v0.2.2
-          path: My_Latest_Artifacts_v0.2.2.zip
+          name: My_Latest_Artifacts_Windowsv0.2.3.zip
+          path: release-files
+      - uses: actions/download-artifact@v4
+        with:
+          name: My_Latest_Artifacts_Linuxv0.2.3.tar.gz
+          path: release-files
+      - uses: actions/download-artifact@v4
+        with:
+          name: My_Latest_Artifacts_iOSv0.2.3.zip
+          path: release-files
+      - name: Create combined ZIP with platform files at its root
+        run: |
+          mkdir -p package
+          cp release-files/My_Latest_Artifacts_Androidv0.2.3.apk package/
+          cp release-files/My_Latest_Artifacts_Windowsv0.2.3.zip package/
+          cp release-files/My_Latest_Artifacts_Linuxv0.2.3.tar.gz package/
+          cp release-files/My_Latest_Artifacts_iOSv0.2.3.zip package/
+          cd package
+          zip -j ../My_Latest_Artifacts_v0.2.3.zip ./*
+          cd ..
+      - name: Publish direct download files on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.2.3 \
+            package/My_Latest_Artifacts_Androidv0.2.3.apk \
+            package/My_Latest_Artifacts_Windowsv0.2.3.zip \
+            package/My_Latest_Artifacts_Linuxv0.2.3.tar.gz \
+            package/My_Latest_Artifacts_iOSv0.2.3.zip \
+            My_Latest_Artifacts_v0.2.3.zip \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "My Latest Artifacts v0.2.3" \
+            --notes "Platform downloads and combined package. The iOS package is a simulator build, not an installable IPA."
