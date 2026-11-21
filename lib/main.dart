@@ -10,7 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'github_service.dart';
 
-const String appVersion = '0.2.13';
+const String appVersion = '0.2.14';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -803,15 +803,18 @@ class _SelectedPlatformsStateState extends State<_SelectedPlatformsState> {
       );
     }).toList();
 
-    // Newest artifact first. Projects without a successful artifact are
-    // always placed after dated results; ties are ordered by project name.
+    // Show only the selected projects, newest artifact creation date first.
+    // Projects without a successful artifact remain at the bottom.
+    // If dates match, sort by project title, then artifact title.
     items.sort((a, b) {
       if (a.hasArtifact != b.hasArtifact) return a.hasArtifact ? -1 : 1;
       if (a.hasArtifact && b.hasArtifact) {
         final byDate = b.createdAt.compareTo(a.createdAt);
         if (byDate != 0) return byDate;
       }
-      return a.project.toLowerCase().compareTo(b.project.toLowerCase());
+      final byProject = a.project.toLowerCase().compareTo(b.project.toLowerCase());
+      if (byProject != 0) return byProject;
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
     await DiagnosticLog.write(
       'github_main_list_sorted',
