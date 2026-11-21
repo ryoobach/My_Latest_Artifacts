@@ -2,7 +2,7 @@
 
 Cross-platform dashboard for viewing the newest build artifact from each project.
 
-## Build 0.2.4
+## Build 0.2.5
 
 - Adds the initial login screen with ID and password fields side by side with the login button.
 - Displays Google, Facebook, KakaoTalk, and Naver sign-in choices below the login row. These are UI placeholders only: selecting one reports that OAuth setup is required; no provider authentication is active yet.
@@ -18,16 +18,16 @@ Cross-platform dashboard for viewing the newest build artifact from each project
 - Publishes the five files as direct GitHub Release assets, avoiding an extra Actions-artifact ZIP wrapper for end-user downloads.
 - The combined ZIP contains the four platform files directly at its root.
 
-## Authentication roadmap
+## Authentication status
 
-- The login screen presents Google, Facebook, KakaoTalk, and Naver choices in that order.
-- The current build contains the login UI only. Password login and social login are not connected to an authentication server or provider OAuth flow.
+- The selected platform's login page reuses the previously designed ID/password row and Google, Facebook, KakaoTalk, and Naver sign-in buttons.
+- This is still a login UI placeholder. Password login and social login are not connected to provider OAuth or a backend; buttons report that authentication setup is required.
 - Real sign-in requires OAuth application registration, client identifiers/secrets, redirect URI configuration, and platform-specific callback setup.
 - Connecting GitHub, GitLab, Bitbucket, Azure DevOps, and Jenkins still requires each provider's own authorization and API integration. App sign-in does not grant access to those development-platform accounts.
 
 ## Important implementation status
 
-This remains an intermediate UI and settings build. The selected development-platform list is saved, and platform credential values are stored securely on the device, but provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. Do not treat the platform selection screen as proof that artifact retrieval is already working.
+This remains an intermediate UI and settings build. The selected development-platform list is saved. The per-platform login screen is currently UI-only; provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. Do not treat the platform selection screen as proof that artifact retrieval is already working.
 
 ## Build outputs
 
