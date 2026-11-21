@@ -83,7 +83,8 @@ jobs:
       - run: flutter create --platforms=android,ios,windows,linux --project-name=my_latest_artifacts .
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
-      - run: flutter build linux --release
+      - name: Build Linux with compatibility for bundled JSON header warning
+        run: CXXFLAGS='-Wno-error=deprecated-literal-operator' flutter build linux --release
       - run: tar -czf My_Latest_Artifacts_Linux_x64_v0.2.1.tar.gz -C build/linux/x64/release/bundle .
       - uses: actions/upload-artifact@v4
         with:
