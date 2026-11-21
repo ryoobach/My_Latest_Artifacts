@@ -4,30 +4,22 @@ Cross-platform dashboard for viewing the newest build artifact from each project
 
 ## Build 0.2.5
 
-- Adds the initial login screen with ID and password fields side by side with the login button.
-- Displays Google, Facebook, KakaoTalk, and Naver sign-in choices below the login row. These are UI placeholders only: selecting one reports that OAuth setup is required; no provider authentication is active yet.
-- Adds the current date in YYYY-MM-DD format between the app identity row and the existing user/collaborator row in the About dialog.
-- Updates the About dialog to show the original app icon, app name, and version on the first row.
-- Shows the existing user/collaborator artwork `js_logo.png` beside `Ryoo jaesang & 최피디` on the second row. No additional "공동제작" caption is displayed.
-- Uses the exact agreed filenames for GitHub Actions artifacts and GitHub Release assets:
-  - `My_Latest_Artifacts_Androidv0.2.4.apk`
-  - `My_Latest_Artifacts_Windowsv0.2.4.zip`
-  - `My_Latest_Artifacts_Linuxv0.2.4.tar.gz`
-  - `My_Latest_Artifacts_iOSv0.2.4.zip`
-  - Combined: `My_Latest_Artifacts_v0.2.4.zip`
-- Publishes the five files as direct GitHub Release assets, avoiding an extra Actions-artifact ZIP wrapper for end-user downloads.
-- The combined ZIP contains the four platform files directly at its root.
+- Restores the original project dashboard as the app's initial screen. No login page appears at startup.
+- The floating action button is labeled **새 프로젝트** and opens a checkbox list of popular development platforms: GitHub, GitLab, Bitbucket, Azure DevOps, Jenkins, SourceForge, Gitea, and Codeberg.
+- Selected platforms are saved and listed on the dashboard. Tapping a listed platform opens the existing login UI with that platform's name.
+- Keeps the About dialog date and the original app/collaborator artwork layout.
+- Publishes versioned direct-download files for Android, Windows, Linux, iOS simulator, and a combined ZIP using the v0.2.5 filenames.
 
 ## Authentication status
 
 - The selected platform's login page reuses the previously designed ID/password row and Google, Facebook, KakaoTalk, and Naver sign-in buttons.
-- This is still a login UI placeholder. Password login and social login are not connected to provider OAuth or a backend; buttons report that authentication setup is required.
+- This is a login UI placeholder only. Password login and social login are not connected to provider OAuth or a backend; the buttons report that authentication setup is required.
 - Real sign-in requires OAuth application registration, client identifiers/secrets, redirect URI configuration, and platform-specific callback setup.
-- Connecting GitHub, GitLab, Bitbucket, Azure DevOps, and Jenkins still requires each provider's own authorization and API integration. App sign-in does not grant access to those development-platform accounts.
+- Connecting each development platform still requires its own authorization and API integration.
 
 ## Important implementation status
 
-This remains an intermediate UI and settings build. The selected development-platform list is saved. The per-platform login screen is currently UI-only; provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. Do not treat the platform selection screen as proof that artifact retrieval is already working.
+The selected development-platform list is saved. Per-platform login is currently UI-only; provider authentication, automatic project discovery, latest-artifact retrieval, date sorting, and confirmed-download flow are not connected yet. Do not treat the platform selection screen as proof that artifact retrieval is already working.
 
 ## Build outputs
 
